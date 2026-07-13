@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using GleapSDK.Outbound;
 
 namespace Gleap.Core.Tests;
