@@ -66,4 +66,5 @@ public interface IGleapBackend
     void DisableConsoleLog();
     void SetActivationMethods(ActivationMethod[] activationMethods);
     void SetAiTools(GleapSDK.Models.AITool[] tools);
+    void AddReplayFrame(string base64);
 }

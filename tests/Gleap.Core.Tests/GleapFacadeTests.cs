@@ -66,6 +66,7 @@ public class GleapFacadeTests
         public void DisableConsoleLog() { }
         public void SetActivationMethods(ActivationMethod[] activationMethods) { }
         public void SetAiTools(AITool[] tools) { }
+        public void AddReplayFrame(string base64) { }
     }
 
     [Fact]

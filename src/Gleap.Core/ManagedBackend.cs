@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GleapSDK.Bridge;
+using GleapSDK.Capture;
 using GleapSDK.Collection;
 using GleapSDK.Data;
 using GleapSDK.Events;
@@ -27,6 +28,7 @@ public sealed class ManagedBackend : IGleapBackend
         public IWebViewChannel Channel { get; set; } = null!;
         public GleapEndpoints Endpoints { get; set; } = GleapEndpoints.Default;
         public IMetadataProvider Metadata { get; set; } = new DefaultMetadataProvider("NET", "0.1.0");
+        public IScreenshotProvider? Screenshot { get; set; }
     }
 
     private readonly Dependencies _d;
@@ -43,6 +45,7 @@ public sealed class ManagedBackend : IGleapBackend
     private readonly TicketAttributeStore _ticketAttributes = new();
     private readonly TagStore _tags = new();
     private readonly AttachmentStore _attachments = new();
+    private readonly ReplayBuffer _replay = new(intervalMs: 1000, capacity: 60);
     private readonly SessionDataCollector _collector;
     private readonly GleapEventDispatcher _events = new();
     private bool _widgetOpen;
@@ -107,7 +110,23 @@ public sealed class ManagedBackend : IGleapBackend
 
         try
         {
-            var body = FeedbackAssembler.Build(_collector.BuildTicketData(), formData, type, null, false, excludeKeys, _attachments.Snapshot());
+            string? screenshot = null;
+            if (_d.Screenshot != null && !excludeKeys.Contains("screenshot"))
+            {
+                try
+                {
+                    screenshot = await _d.Screenshot.CaptureScreenshotAsync(default).ConfigureAwait(false);
+                }
+                catch (System.Exception)
+                {
+                    screenshot = null;
+                }
+            }
+            var replay = _replay.Snapshot().Count > 0 && !excludeKeys.Contains("replays") ? _replay.BuildReplay() : null;
+
+            var body = FeedbackAssembler.Build(
+                _collector.BuildTicketData(), formData, type, null, false, excludeKeys, _attachments.Snapshot(),
+                screenshot: screenshot, replay: replay);
             var response = await _api.SubmitBugAsync(body, _session.GleapId, _session.GleapHash, default).ConfigureAwait(false);
             _bridge.Send(new GleapBridgeMessage { Name = "feedback-sent", Data = new Dictionary<string, object?> { ["response"] = response } });
             _events.Emit("feedbackSent", response);
@@ -132,9 +151,30 @@ public sealed class ManagedBackend : IGleapBackend
             ? new HashSet<string>(excludeData.Keys)
             : new HashSet<string> { "screenshot", "replays", "attachments" };
         var formData = new Dictionary<string, object?> { ["description"] = description };
-        var body = FeedbackAssembler.Build(_collector.BuildTicketData(), formData, "CRASH", priority, true, excludeKeys, _attachments.Snapshot());
+
+        string? screenshot = null;
+        if (_d.Screenshot != null && !excludeKeys.Contains("screenshot"))
+        {
+            try
+            {
+                screenshot = await _d.Screenshot.CaptureScreenshotAsync(ct).ConfigureAwait(false);
+            }
+            catch (System.Exception)
+            {
+                screenshot = null;
+            }
+        }
+        var replay = _replay.Snapshot().Count > 0 && !excludeKeys.Contains("replays") ? _replay.BuildReplay() : null;
+
+        var body = FeedbackAssembler.Build(
+            _collector.BuildTicketData(), formData, "CRASH", priority, true, excludeKeys, _attachments.Snapshot(),
+            screenshot: screenshot, replay: replay);
         await _api.SubmitBugAsync(body, _session.GleapId, _session.GleapHash, ct).ConfigureAwait(false);
     }
+
+    /// <summary>Pushes a periodically captured screenshot into the bounded replay ring
+    /// (platform host owns the timer cadence).</summary>
+    public void AddReplayFrame(string base64) => _replay.AddFrame(base64);
 
     private static Dictionary<string, object?> ReadObject(JsonElement parent, string name)
     {
