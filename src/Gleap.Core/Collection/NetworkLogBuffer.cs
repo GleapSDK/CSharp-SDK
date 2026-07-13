@@ -20,8 +20,15 @@ public sealed class NetworkLogBuffer
 
     public void SetPropsToIgnore(IReadOnlyList<string> propsToIgnore) => _propsToIgnore = propsToIgnore;
 
+    public bool Enabled { get; set; } = true;
+
     public void Add(GleapNetworkLog log)
     {
+        if (!Enabled)
+        {
+            return;
+        }
+
         foreach (var blocked in _blacklist)
         {
             if (log.Url.Contains(blocked))

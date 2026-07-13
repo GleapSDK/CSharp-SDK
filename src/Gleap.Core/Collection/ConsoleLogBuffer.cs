@@ -17,8 +17,15 @@ public sealed class ConsoleLogBuffer
         _buffer = new RingBuffer<GleapLog>(capacity);
     }
 
+    public bool Enabled { get; set; } = true;
+
     public void Add(string message, LogLevel level)
     {
+        if (!Enabled)
+        {
+            return;
+        }
+
         _buffer.Add(new GleapLog
         {
             Date = _clock.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture),
