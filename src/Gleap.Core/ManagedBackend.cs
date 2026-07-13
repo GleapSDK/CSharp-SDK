@@ -22,6 +22,7 @@ public sealed class ManagedBackend : IGleapBackend
         public IKeyValueStore Store { get; set; } = new InMemoryKeyValueStore();
         public IWebViewChannel Channel { get; set; } = null!;
         public GleapEndpoints Endpoints { get; set; } = GleapEndpoints.Default;
+        public IMetadataProvider Metadata { get; set; } = new DefaultMetadataProvider("NET", "0.1.0");
     }
 
     private readonly Dependencies _d;
@@ -48,7 +49,7 @@ public sealed class ManagedBackend : IGleapBackend
         _collector = new SessionDataCollector(
             _consoleLog, _eventLog, _networkLog,
             _customData, _ticketAttributes, _tags,
-            new DefaultMetadataProvider("NET/Windows", "0.1.0"));
+            _d.Metadata);
     }
 
     private WebViewBridge Bridge => _bridge ?? throw new System.InvalidOperationException(
