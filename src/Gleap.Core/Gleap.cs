@@ -30,6 +30,17 @@ public static class Gleap
     public static void OpenHelpCenter(bool showBackButton = true) => Backend.OpenHelpCenter(showBackButton);
     public static void OpenNews(bool showBackButton = true) => Backend.OpenNews(showBackButton);
     public static void ShowSurvey(string surveyId, SurveyFormat format = SurveyFormat.Survey) => Backend.ShowSurvey(surveyId, format);
+    public static void OpenConversations(bool showBackButton = true) => Backend.OpenConversations(showBackButton);
+    public static void StartClassicForm(string formId, bool showBackButton = true) => Backend.StartClassicForm(formId, showBackButton);
+    public static void OpenHelpCenterArticle(string articleId, bool showBackButton = true) => Backend.OpenHelpCenterArticle(articleId, showBackButton);
+    public static void OpenHelpCenterCollection(string collectionId, bool showBackButton = true) => Backend.OpenHelpCenterCollection(collectionId, showBackButton);
+    public static void SearchHelpCenter(string term, bool showBackButton = true) => Backend.SearchHelpCenter(term, showBackButton);
+    public static void OpenNewsArticle(string articleId, bool showBackButton = true) => Backend.OpenNewsArticle(articleId, showBackButton);
+    public static void OpenFeatureRequests(bool showBackButton = true) => Backend.OpenFeatureRequests(showBackButton);
+    public static void OpenChecklists(bool showBackButton = true) => Backend.OpenChecklists(showBackButton);
+    public static void OpenChecklist(string checklistId, bool showBackButton = true) => Backend.OpenChecklist(checklistId, showBackButton);
+    public static void StartChecklist(string outboundId, bool showBackButton = true) => Backend.StartChecklist(outboundId, showBackButton);
+    public static void AskAI(string question, bool showBackButton = true) => Backend.AskAI(question, showBackButton);
 
     public static void Log(string message, LogLevel level = LogLevel.Info) => Backend.Log(message, level);
     public static void TrackEvent(string name, object? data = null) => Backend.TrackEvent(name, data);

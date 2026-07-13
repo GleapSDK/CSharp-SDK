@@ -101,6 +101,17 @@ public sealed class ManagedBackend : IGleapBackend
     public void OpenHelpCenter(bool showBackButton) => Bridge.Send(WidgetCommands.OpenHelpCenter(showBackButton));
     public void OpenNews(bool showBackButton) => Bridge.Send(WidgetCommands.OpenNews(showBackButton));
     public void ShowSurvey(string surveyId, SurveyFormat format) => Bridge.Send(WidgetCommands.StartSurvey(surveyId, format));
+    public void OpenConversations(bool showBackButton) => Bridge.Send(WidgetCommands.OpenConversations(showBackButton));
+    public void StartClassicForm(string formId, bool showBackButton) => Bridge.Send(WidgetCommands.StartClassicForm(formId, showBackButton));
+    public void OpenHelpCenterArticle(string articleId, bool showBackButton) => Bridge.Send(WidgetCommands.OpenHelpCenterArticle(articleId, showBackButton));
+    public void OpenHelpCenterCollection(string collectionId, bool showBackButton) => Bridge.Send(WidgetCommands.OpenHelpCenterCollection(collectionId, showBackButton));
+    public void SearchHelpCenter(string term, bool showBackButton) => Bridge.Send(WidgetCommands.SearchHelpCenter(term, showBackButton));
+    public void OpenNewsArticle(string articleId, bool showBackButton) => Bridge.Send(WidgetCommands.OpenNewsArticle(articleId, showBackButton));
+    public void OpenFeatureRequests(bool showBackButton) => Bridge.Send(WidgetCommands.OpenFeatureRequests(showBackButton));
+    public void OpenChecklists(bool showBackButton) => Bridge.Send(WidgetCommands.OpenChecklists(showBackButton));
+    public void OpenChecklist(string checklistId, bool showBackButton) => Bridge.Send(WidgetCommands.OpenChecklist(checklistId, showBackButton));
+    public void StartChecklist(string outboundId, bool showBackButton) => Bridge.Send(WidgetCommands.StartChecklist(outboundId, showBackButton));
+    public void AskAI(string question, bool showBackButton) => Bridge.Send(WidgetCommands.AskAI(question, showBackButton));
 
     public void Log(string message, LogLevel level) => _consoleLog.Add(message, level);
     public void TrackEvent(string name, object? data) => _eventLog.Add(name, data);

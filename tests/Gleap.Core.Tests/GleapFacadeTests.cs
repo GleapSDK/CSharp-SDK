@@ -20,6 +20,17 @@ public class GleapFacadeTests
         public void OpenHelpCenter(bool showBackButton) { }
         public void OpenNews(bool showBackButton) => OpenNewsCalled = true;
         public void ShowSurvey(string surveyId, SurveyFormat format) { }
+        public void OpenConversations(bool showBackButton) { }
+        public void StartClassicForm(string formId, bool showBackButton) { }
+        public void OpenHelpCenterArticle(string articleId, bool showBackButton) { }
+        public void OpenHelpCenterCollection(string collectionId, bool showBackButton) { }
+        public void SearchHelpCenter(string term, bool showBackButton) { }
+        public void OpenNewsArticle(string articleId, bool showBackButton) { }
+        public void OpenFeatureRequests(bool showBackButton) { }
+        public void OpenChecklists(bool showBackButton) { }
+        public void OpenChecklist(string checklistId, bool showBackButton) { }
+        public void StartChecklist(string outboundId, bool showBackButton) { }
+        public void AskAI(string question, bool showBackButton) { }
         public void Log(string message, LogLevel level) { }
         public void TrackEvent(string name, object? data) { }
         public void TrackPage(string pageName) { }

@@ -20,6 +20,17 @@ public interface IGleapBackend
     void OpenHelpCenter(bool showBackButton);
     void OpenNews(bool showBackButton);
     void ShowSurvey(string surveyId, SurveyFormat format);
+    void OpenConversations(bool showBackButton);
+    void StartClassicForm(string formId, bool showBackButton);
+    void OpenHelpCenterArticle(string articleId, bool showBackButton);
+    void OpenHelpCenterCollection(string collectionId, bool showBackButton);
+    void SearchHelpCenter(string term, bool showBackButton);
+    void OpenNewsArticle(string articleId, bool showBackButton);
+    void OpenFeatureRequests(bool showBackButton);
+    void OpenChecklists(bool showBackButton);
+    void OpenChecklist(string checklistId, bool showBackButton);
+    void StartChecklist(string outboundId, bool showBackButton);
+    void AskAI(string question, bool showBackButton);
     void Log(string message, LogLevel level);
     void TrackEvent(string name, object? data);
     void TrackPage(string pageName);
