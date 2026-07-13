@@ -16,7 +16,9 @@ public static class FeedbackAssembler
         string? priority,
         bool isSilent,
         ISet<string> excludeKeys,
-        IReadOnlyList<GleapAttachment>? attachments = null)
+        IReadOnlyList<GleapAttachment>? attachments = null,
+        string? screenshot = null,
+        IReadOnlyDictionary<string, object?>? replay = null)
     {
         var body = new Dictionary<string, object?>();
         foreach (var kv in ticketData)
@@ -53,10 +55,22 @@ public static class FeedbackAssembler
         {
             body["attachments"] = attachments;
         }
+        if (screenshot != null)
+        {
+            body["screenshot"] = screenshot;
+        }
+        if (replay != null)
+        {
+            body["replay"] = replay;
+        }
 
         foreach (var key in excludeKeys)
         {
             body.Remove(key);
+        }
+        if (excludeKeys.Contains("replays"))
+        {
+            body.Remove("replay");
         }
 
         return body;
