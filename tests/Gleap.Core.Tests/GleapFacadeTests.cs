@@ -14,6 +14,7 @@ public class GleapFacadeTests
 
         public Task InitializeAsync(string token, CancellationToken ct) => Task.CompletedTask;
         public void RegisterListener(string eventName, Action<object?> handler) { }
+        public Task PollOutboundOnceAsync(CancellationToken ct) => Task.CompletedTask;
         public void Open() => OpenCalled = true;
         public void Close() { }
         public void StartConversation(bool showBackButton) { }

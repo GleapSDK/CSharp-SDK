@@ -45,6 +45,7 @@ public sealed class ManagedBackend : IGleapBackend
     private readonly AttachmentStore _attachments = new();
     private readonly SessionDataCollector _collector;
     private readonly GleapEventDispatcher _events = new();
+    private bool _widgetOpen;
 
     /// <summary>The most recently started send-feedback round-trip; exposed so tests can await it.</summary>
     internal Task? LastFeedbackTask { get; private set; }
@@ -181,6 +182,7 @@ public sealed class ManagedBackend : IGleapBackend
             Name = "widget-status-update",
             Data = new System.Collections.Generic.Dictionary<string, object> { ["isWidgetOpen"] = true }
         });
+        _widgetOpen = true;
         _events.Emit("widgetOpened");
     }
 
@@ -191,7 +193,49 @@ public sealed class ManagedBackend : IGleapBackend
             Name = "widget-status-update",
             Data = new System.Collections.Generic.Dictionary<string, object> { ["isWidgetOpen"] = false }
         });
+        _widgetOpen = false;
         _events.Emit("widgetClosed");
+    }
+
+    /// <summary>Runs one outbound poll cycle: flush events, ping, emit notificationCountUpdated +
+    /// outboundSent per action, and auto-open survey/feedback-flow actions. The platform host calls
+    /// this on a timer (Core stays threadless).</summary>
+    public async Task PollOutboundOnceAsync(CancellationToken ct)
+    {
+        var events = new List<object?>();
+        foreach (var e in _eventLog.Snapshot())
+        {
+            events.Add(new Dictionary<string, object?> { ["name"] = e.Name, ["data"] = e.Data, ["date"] = e.Date });
+        }
+
+        var time = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var response = await _api.PingAsync(time, events, _widgetOpen, _session.GleapId, _session.GleapHash, ct)
+            .ConfigureAwait(false);
+
+        _events.Emit("notificationCountUpdated", response.UnreadCount);
+
+        foreach (var action in response.Actions)
+        {
+            _events.Emit("outboundSent", new Dictionary<string, object?>
+            {
+                ["actionType"] = action.ActionType,
+                ["outboundId"] = action.OutboundId
+            });
+
+            if (action.ActionType == "survey")
+            {
+                var flow = action.Data.TryGetProperty("flow", out var f) && f.ValueKind == JsonValueKind.String
+                    ? f.GetString()! : action.OutboundId ?? "";
+                Bridge.Send(WidgetCommands.StartSurvey(flow, SurveyFormat.Survey));
+            }
+            else if (action.ActionType == "feedbackflow")
+            {
+                var flow = action.Data.TryGetProperty("flow", out var f) && f.ValueKind == JsonValueKind.String
+                    ? f.GetString()! : action.OutboundId ?? "";
+                Bridge.Send(WidgetCommands.StartClassicForm(flow, showBackButton: true));
+            }
+            // notification / banner / modal: surfaced via outboundSent; rendering is the platform host's job.
+        }
     }
 
     public void StartConversation(bool showBackButton) => Bridge.Send(WidgetCommands.StartConversation(showBackButton));

@@ -14,6 +14,7 @@ public interface IGleapBackend
 {
     Task InitializeAsync(string token, CancellationToken ct);
     void RegisterListener(string eventName, System.Action<object?> handler);
+    Task PollOutboundOnceAsync(CancellationToken ct);
     void Open();
     void Close();
     void StartConversation(bool showBackButton);
