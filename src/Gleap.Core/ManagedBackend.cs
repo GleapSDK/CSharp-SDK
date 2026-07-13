@@ -101,7 +101,7 @@ public sealed class ManagedBackend : IGleapBackend
 
         try
         {
-            var body = FeedbackAssembler.Build(_collector.BuildTicketData(), formData, type, null, false, excludeKeys);
+            var body = FeedbackAssembler.Build(_collector.BuildTicketData(), formData, type, null, false, excludeKeys, _attachments.Snapshot());
             var response = await _api.SubmitBugAsync(body, _session.GleapId, _session.GleapHash, default).ConfigureAwait(false);
             _bridge.Send(new GleapBridgeMessage { Name = "feedback-sent", Data = new Dictionary<string, object?> { ["response"] = response } });
             _events.Emit("feedbackSent", response);
@@ -126,7 +126,7 @@ public sealed class ManagedBackend : IGleapBackend
             ? new HashSet<string>(excludeData.Keys)
             : new HashSet<string> { "screenshot", "replays", "attachments" };
         var formData = new Dictionary<string, object?> { ["description"] = description };
-        var body = FeedbackAssembler.Build(_collector.BuildTicketData(), formData, "CRASH", priority, true, excludeKeys);
+        var body = FeedbackAssembler.Build(_collector.BuildTicketData(), formData, "CRASH", priority, true, excludeKeys, _attachments.Snapshot());
         await _api.SubmitBugAsync(body, _session.GleapId, _session.GleapHash, ct).ConfigureAwait(false);
     }
 

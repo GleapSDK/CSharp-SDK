@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using GleapSDK.Models;
 
 namespace GleapSDK.Feedback;
 
@@ -14,7 +15,8 @@ public static class FeedbackAssembler
         string type,
         string? priority,
         bool isSilent,
-        ISet<string> excludeKeys)
+        ISet<string> excludeKeys,
+        IReadOnlyList<GleapAttachment>? attachments = null)
     {
         var body = new Dictionary<string, object?>();
         foreach (var kv in ticketData)
@@ -46,6 +48,10 @@ public static class FeedbackAssembler
         if (isSilent)
         {
             body["isSilent"] = true;
+        }
+        if (attachments != null && attachments.Count > 0)
+        {
+            body["attachments"] = attachments;
         }
 
         foreach (var key in excludeKeys)
