@@ -1,4 +1,4 @@
-using System.Threading;
+﻿using System.Threading;
 using System.Threading.Tasks;
 using GleapSDK.Bridge;
 using GleapSDK.Http;

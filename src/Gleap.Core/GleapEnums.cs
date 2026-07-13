@@ -1,4 +1,4 @@
-namespace GleapSDK;
+﻿namespace GleapSDK;
 
 public enum Severity { Low, Medium, High }
 

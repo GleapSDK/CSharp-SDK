@@ -1,4 +1,4 @@
-namespace GleapSDK.Http;
+﻿namespace GleapSDK.Http;
 
 /// <summary>Configurable Gleap service base URLs.</summary>
 public sealed class GleapEndpoints

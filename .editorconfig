@@ -16,11 +16,41 @@ dotnet_style_readonly_field = true:warning
 csharp_prefer_simple_using_statement = true:suggestion
 dotnet_diagnostic.IDE0005.severity = warning
 
-# Naming: private instance fields => _camelCase
+# CA1716: names like Get/Set/Call clash with VB/F# keywords. This SDK is consumed from
+# C# only (Unity, MAUI, WPF), so the cross-language concern does not apply — keep the
+# idiomatic names instead of uglifying them.
+dotnet_diagnostic.CA1716.severity = none
+
+# --- Naming styles ---
+dotnet_naming_style.underscore_prefix.capitalization = camel_case
+dotnet_naming_style.underscore_prefix.required_prefix = _
+dotnet_naming_style.pascal_case_style.capitalization = pascal_case
+
+# Private const fields => PascalCase (listed before the instance-field rule so it wins).
+dotnet_naming_symbols.private_const_fields.applicable_kinds = field
+dotnet_naming_symbols.private_const_fields.applicable_accessibilities = private
+dotnet_naming_symbols.private_const_fields.required_modifiers = const
+dotnet_naming_rule.private_const_pascal.symbols = private_const_fields
+dotnet_naming_rule.private_const_pascal.style = pascal_case_style
+dotnet_naming_rule.private_const_pascal.severity = warning
+
+# Private static readonly fields => PascalCase.
+dotnet_naming_symbols.private_static_readonly_fields.applicable_kinds = field
+dotnet_naming_symbols.private_static_readonly_fields.applicable_accessibilities = private
+dotnet_naming_symbols.private_static_readonly_fields.required_modifiers = static, readonly
+dotnet_naming_rule.private_static_readonly_pascal.symbols = private_static_readonly_fields
+dotnet_naming_rule.private_static_readonly_pascal.style = pascal_case_style
+dotnet_naming_rule.private_static_readonly_pascal.severity = warning
+
+# All other private instance fields => _camelCase.
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
 dotnet_naming_rule.private_fields_underscore.symbols = private_fields
 dotnet_naming_rule.private_fields_underscore.style = underscore_prefix
 dotnet_naming_rule.private_fields_underscore.severity = warning
-dotnet_naming_symbols.private_fields.applicable_kinds = field
-dotnet_naming_symbols.private_fields.applicable_accessibilities = private
-dotnet_naming_style.underscore_prefix.capitalization = camel_case
-dotnet_naming_style.underscore_prefix.required_prefix = _
+
+# Test projects follow xUnit conventions: underscored test method names, and holding
+# concrete collaborators behind interfaces for readability — relax the rules that fight that.
+[tests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1859.severity = none

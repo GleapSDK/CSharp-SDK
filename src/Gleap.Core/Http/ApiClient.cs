@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,8 +25,16 @@ public sealed class ApiClient
     private Dictionary<string, string> BaseHeaders(string? gleapId, string? gleapHash)
     {
         var h = new Dictionary<string, string> { ["Api-Token"] = _sdkKey };
-        if (!string.IsNullOrEmpty(gleapId)) h["Gleap-Id"] = gleapId!;
-        if (!string.IsNullOrEmpty(gleapHash)) h["Gleap-Hash"] = gleapHash!;
+        if (!string.IsNullOrEmpty(gleapId))
+        {
+            h["Gleap-Id"] = gleapId!;
+        }
+
+        if (!string.IsNullOrEmpty(gleapHash))
+        {
+            h["Gleap-Hash"] = gleapHash!;
+        }
+
         return h;
     }
 

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace GleapSDK.Bridge;
 
@@ -8,10 +8,14 @@ namespace GleapSDK.Bridge;
 /// </summary>
 public static class WidgetCommands
 {
-    private static object Hide(bool showBackButton, params (string key, object value)[] extra)
+    private static Dictionary<string, object> Hide(bool showBackButton, params (string key, object value)[] extra)
     {
         var d = new Dictionary<string, object> { ["hideBackButton"] = !showBackButton };
-        foreach (var (k, v) in extra) d[k] = v;
+        foreach (var (k, v) in extra)
+        {
+            d[k] = v;
+        }
+
         return d;
     }
 

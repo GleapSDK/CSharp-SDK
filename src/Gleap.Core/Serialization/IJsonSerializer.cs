@@ -1,4 +1,4 @@
-namespace GleapSDK.Serialization;
+﻿namespace GleapSDK.Serialization;
 
 public interface IJsonSerializer
 {

@@ -1,6 +1,4 @@
-using System.Collections.Generic;
-using Gleap.Core.Tests.Fakes;
-using Xunit;
+﻿using Gleap.Core.Tests.Fakes;
 
 namespace Gleap.Core.Tests;
 

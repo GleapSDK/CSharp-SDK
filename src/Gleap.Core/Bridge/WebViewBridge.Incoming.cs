@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Text.Json;
 
 namespace GleapSDK.Bridge;
@@ -35,12 +35,18 @@ public sealed partial class WebViewBridge
             case "run-custom-action":
                 var actionName = msg.Data.ValueKind == JsonValueKind.String ? msg.Data.GetString() : null;
                 if (!string.IsNullOrEmpty(actionName))
+                {
                     CustomActionTriggered?.Invoke(actionName!, msg.ShareToken);
+                }
+
                 break;
 
             case "open-url":
                 if (msg.Data.ValueKind == JsonValueKind.String)
+                {
                     OpenUrlRequested?.Invoke(msg.Data.GetString()!);
+                }
+
                 break;
 
             case "notify-event":
@@ -57,8 +63,8 @@ public sealed partial class WebViewBridge
                 SendFeedbackRequested?.Invoke(msg.Data);
                 break;
 
-            // tool-execution, frontend-tool-execute, collect-ticket-data,
-            // cleanup-drawings, screenshot-updated -> handled in SP-0 Part 2.
+                // tool-execution, frontend-tool-execute, collect-ticket-data,
+                // cleanup-drawings, screenshot-updated -> handled in SP-0 Part 2.
         }
     }
 }

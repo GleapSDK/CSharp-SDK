@@ -1,9 +1,7 @@
-using System.Linq;
-using Gleap.Core.Tests.Fakes;
+﻿using Gleap.Core.Tests.Fakes;
 using GleapSDK.Bridge;
 using GleapSDK.Serialization;
 using GleapSDK.Session;
-using Xunit;
 
 namespace Gleap.Core.Tests;
 
@@ -16,9 +14,12 @@ public class WidgetBootstrapperTests
         var bridge = new WebViewBridge(ch, new SystemTextJsonSerializer());
         var state = new SessionSnapshot
         {
-            SdkKey = "key", ApiUrl = "https://api.gleap.io",
-            GleapId = "g1", GleapHash = "h1",
-            FlowConfigJson = "{\"color\":\"#fff\"}", ProjectActionsJson = "{\"x\":1}",
+            SdkKey = "key",
+            ApiUrl = "https://api.gleap.io",
+            GleapId = "g1",
+            GleapHash = "h1",
+            FlowConfigJson = "{\"color\":\"#fff\"}",
+            ProjectActionsJson = "{\"x\":1}",
             Language = "en"
         };
         _ = new WidgetBootstrapper(bridge, () => state);
@@ -39,9 +40,13 @@ public class WidgetBootstrapperTests
         var bridge = new WebViewBridge(ch, new SystemTextJsonSerializer());
         var state = new SessionSnapshot
         {
-            SdkKey = "key-xyz", ApiUrl = "https://api.gleap.io",
-            GleapId = "gid", GleapHash = "gh",
-            FlowConfigJson = "{}", ProjectActionsJson = "{}", Language = "en"
+            SdkKey = "key-xyz",
+            ApiUrl = "https://api.gleap.io",
+            GleapId = "gid",
+            GleapHash = "gh",
+            FlowConfigJson = "{}",
+            ProjectActionsJson = "{}",
+            Language = "en"
         };
         _ = new WidgetBootstrapper(bridge, () => state);
 
@@ -59,8 +64,13 @@ public class WidgetBootstrapperTests
         var bridge = new WebViewBridge(ch, new SystemTextJsonSerializer());
         var state = new SessionSnapshot
         {
-            SdkKey = "key", ApiUrl = "https://api.gleap.io", GleapId = "g", GleapHash = "h",
-            FlowConfigJson = "{}", ProjectActionsJson = "{}", Language = "en"
+            SdkKey = "key",
+            ApiUrl = "https://api.gleap.io",
+            GleapId = "g",
+            GleapHash = "h",
+            FlowConfigJson = "{}",
+            ProjectActionsJson = "{}",
+            Language = "en"
         };
         _ = new WidgetBootstrapper(bridge, () => state);
         bridge.Send(WidgetCommands.OpenNews(showBackButton: true)); // queued pre-ping

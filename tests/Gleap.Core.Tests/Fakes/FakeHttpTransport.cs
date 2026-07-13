@@ -1,7 +1,4 @@
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using GleapSDK.Http;
+﻿using GleapSDK.Http;
 
 namespace Gleap.Core.Tests.Fakes;
 

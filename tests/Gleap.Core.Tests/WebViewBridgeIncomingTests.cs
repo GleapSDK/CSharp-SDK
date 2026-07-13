@@ -1,8 +1,6 @@
-using System.Collections.Generic;
-using Gleap.Core.Tests.Fakes;
+﻿using Gleap.Core.Tests.Fakes;
 using GleapSDK.Bridge;
 using GleapSDK.Serialization;
-using Xunit;
 
 namespace Gleap.Core.Tests;
 

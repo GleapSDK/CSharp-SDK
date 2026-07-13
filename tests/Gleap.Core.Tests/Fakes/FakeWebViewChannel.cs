@@ -1,6 +1,4 @@
-using System;
-using System.Collections.Generic;
-using GleapSDK.Bridge;
+﻿using GleapSDK.Bridge;
 
 namespace Gleap.Core.Tests.Fakes;
 

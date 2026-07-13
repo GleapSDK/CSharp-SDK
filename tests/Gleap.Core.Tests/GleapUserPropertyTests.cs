@@ -1,7 +1,5 @@
-using System.Collections.Generic;
-using GleapSDK;
+﻿using GleapSDK;
 using GleapSDK.Models;
-using Xunit;
 
 namespace Gleap.Core.Tests;
 

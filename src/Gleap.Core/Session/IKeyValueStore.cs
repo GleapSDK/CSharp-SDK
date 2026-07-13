@@ -1,4 +1,4 @@
-namespace GleapSDK.Session;
+﻿namespace GleapSDK.Session;
 
 /// <summary>Persistence for session ids. Platform packages back this with
 /// NSUserDefaults / SharedPreferences / registry / file; Core uses in-memory in tests.</summary>

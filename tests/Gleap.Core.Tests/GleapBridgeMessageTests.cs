@@ -1,7 +1,5 @@
-using System.Collections.Generic;
-using GleapSDK.Bridge;
+﻿using GleapSDK.Bridge;
 using GleapSDK.Serialization;
-using Xunit;
 
 namespace Gleap.Core.Tests;
 

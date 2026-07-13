@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using GleapSDK.Serialization;
 
 namespace GleapSDK.Bridge;
@@ -47,7 +47,9 @@ public sealed partial class WebViewBridge
     private void FlushQueue()
     {
         while (_queue.Count > 0)
+        {
             Execute(_queue.Dequeue());
+        }
     }
 
     // Incoming dispatch is implemented in the partial in WebViewBridge.Incoming.cs (Task 7).

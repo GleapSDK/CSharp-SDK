@@ -1,4 +1,4 @@
-namespace GleapSDK.Http;
+﻿namespace GleapSDK.Http;
 
 /// <summary>Parsed <c>POST /sessions</c> response.</summary>
 public sealed class SessionResult

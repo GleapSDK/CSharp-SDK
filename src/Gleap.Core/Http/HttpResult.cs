@@ -1,4 +1,4 @@
-namespace GleapSDK.Http;
+﻿namespace GleapSDK.Http;
 
 /// <summary>Immutable HTTP response value: status code + raw body.</summary>
 public readonly struct HttpResult

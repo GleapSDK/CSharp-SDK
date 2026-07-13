@@ -1,10 +1,7 @@
-using System.Threading;
-using System.Threading.Tasks;
-using Gleap.Core.Tests.Fakes;
+﻿using Gleap.Core.Tests.Fakes;
 using GleapSDK.Http;
 using GleapSDK.Serialization;
 using GleapSDK.Session;
-using Xunit;
 
 namespace Gleap.Core.Tests;
 
