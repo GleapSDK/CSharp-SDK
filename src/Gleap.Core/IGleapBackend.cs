@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using GleapSDK.Models;
 
 namespace GleapSDK;
 
@@ -31,6 +32,11 @@ public interface IGleapBackend
     void OpenChecklist(string checklistId, bool showBackButton);
     void StartChecklist(string outboundId, bool showBackButton);
     void AskAI(string question, bool showBackButton);
+    Task IdentifyContactAsync(string userId, GleapUserProperty? properties, string? userHash, CancellationToken ct);
+    Task UpdateContactAsync(GleapUserProperty properties, CancellationToken ct);
+    Task ClearIdentityAsync(CancellationToken ct);
+    bool IsUserIdentified();
+    GleapUserProperty? GetIdentity();
     void Log(string message, LogLevel level);
     void TrackEvent(string name, object? data);
     void TrackPage(string pageName);

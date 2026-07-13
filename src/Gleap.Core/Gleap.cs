@@ -41,6 +41,11 @@ public static class Gleap
     public static void OpenChecklist(string checklistId, bool showBackButton = true) => Backend.OpenChecklist(checklistId, showBackButton);
     public static void StartChecklist(string outboundId, bool showBackButton = true) => Backend.StartChecklist(outboundId, showBackButton);
     public static void AskAI(string question, bool showBackButton = true) => Backend.AskAI(question, showBackButton);
+    public static Task IdentifyContactAsync(string userId, Models.GleapUserProperty? properties = null, string? userHash = null, CancellationToken ct = default) => Backend.IdentifyContactAsync(userId, properties, userHash, ct);
+    public static Task UpdateContactAsync(Models.GleapUserProperty properties, CancellationToken ct = default) => Backend.UpdateContactAsync(properties, ct);
+    public static Task ClearIdentityAsync(CancellationToken ct = default) => Backend.ClearIdentityAsync(ct);
+    public static bool IsUserIdentified() => Backend.IsUserIdentified();
+    public static Models.GleapUserProperty? GetIdentity() => Backend.GetIdentity();
 
     public static void Log(string message, LogLevel level = LogLevel.Info) => Backend.Log(message, level);
     public static void TrackEvent(string name, object? data = null) => Backend.TrackEvent(name, data);

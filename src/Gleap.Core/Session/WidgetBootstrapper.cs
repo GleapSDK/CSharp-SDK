@@ -26,8 +26,14 @@ public sealed class WidgetBootstrapper
 
     private void OnPing()
     {
-        var s = _snapshot();
+        SendConfigUpdate();
+        SendSessionUpdate();
+        SendPrefill();
+    }
 
+    private void SendConfigUpdate()
+    {
+        var s = _snapshot();
         _bridge.Send(new GleapBridgeMessage
         {
             Name = "config-update",
@@ -39,7 +45,12 @@ public sealed class WidgetBootstrapper
                 ["isApp"] = true
             }
         });
+    }
 
+    /// <summary>Sends session-update from the current snapshot. Called on ping and again after identify.</summary>
+    public void SendSessionUpdate()
+    {
+        var s = _snapshot();
         _bridge.Send(new GleapBridgeMessage
         {
             Name = "session-update",
@@ -57,14 +68,14 @@ public sealed class WidgetBootstrapper
                 ["sdkKey"] = s.SdkKey
             }
         });
+    }
 
+    private void SendPrefill()
+    {
+        var s = _snapshot();
         if (s.PreFillFormData != null)
         {
-            _bridge.Send(new GleapBridgeMessage
-            {
-                Name = "prefill-form-data",
-                Data = s.PreFillFormData
-            });
+            _bridge.Send(new GleapBridgeMessage { Name = "prefill-form-data", Data = s.PreFillFormData });
         }
     }
 

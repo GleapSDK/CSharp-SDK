@@ -6,6 +6,7 @@ using GleapSDK.Collection;
 using GleapSDK.Data;
 using GleapSDK.Http;
 using GleapSDK.Metadata;
+using GleapSDK.Models;
 using GleapSDK.Serialization;
 using GleapSDK.Session;
 using GleapSDK.Time;
@@ -29,6 +30,7 @@ public sealed class ManagedBackend : IGleapBackend
     private WebViewBridge _bridge = null!;
     private SessionManager _session = null!;
     private ConfigManager _config = null!;
+    private WidgetBootstrapper _bootstrapper = null!;
     private string _token = "";
     private readonly ConsoleLogBuffer _consoleLog;
     private readonly EventBuffer _eventLog;
@@ -63,7 +65,7 @@ public sealed class ManagedBackend : IGleapBackend
         _config = new ConfigManager(api);
 
         _bridge = new WebViewBridge(_d.Channel, _d.Json);
-        _ = new WidgetBootstrapper(_bridge, BuildSnapshot);
+        _bootstrapper = new WidgetBootstrapper(_bridge, BuildSnapshot);
 
         _bridge.CollectTicketDataRequested += () =>
             _bridge.Send(new GleapBridgeMessage { Name = "collect-ticket-data", Data = _collector.BuildTicketData() });
@@ -80,7 +82,10 @@ public sealed class ManagedBackend : IGleapBackend
         GleapHash = _session.GleapHash,
         FlowConfigJson = _config.FlowConfigJson,
         ProjectActionsJson = _config.ProjectActionsJson,
-        Language = "en"
+        Language = "en",
+        UserId = _session.Identity?.UserId,
+        Name = _session.Identity?.Name,
+        Email = _session.Identity?.Email
     };
 
     public void Open() => Bridge.Send(new GleapBridgeMessage
@@ -112,6 +117,28 @@ public sealed class ManagedBackend : IGleapBackend
     public void OpenChecklist(string checklistId, bool showBackButton) => Bridge.Send(WidgetCommands.OpenChecklist(checklistId, showBackButton));
     public void StartChecklist(string outboundId, bool showBackButton) => Bridge.Send(WidgetCommands.StartChecklist(outboundId, showBackButton));
     public void AskAI(string question, bool showBackButton) => Bridge.Send(WidgetCommands.AskAI(question, showBackButton));
+
+    public async Task IdentifyContactAsync(string userId, GleapUserProperty? properties, string? userHash, CancellationToken ct)
+    {
+        await _session.IdentifyAsync(userId, properties ?? new GleapUserProperty(), userHash, ct).ConfigureAwait(false);
+        _bootstrapper.SendSessionUpdate();
+    }
+
+    public async Task UpdateContactAsync(GleapUserProperty properties, CancellationToken ct)
+    {
+        await _session.UpdateContactAsync(properties, ct).ConfigureAwait(false);
+        _bootstrapper.SendSessionUpdate();
+    }
+
+    public async Task ClearIdentityAsync(CancellationToken ct)
+    {
+        _session.ClearIdentity();
+        await _session.StartAsync("en", "desktop", ct).ConfigureAwait(false);
+        _bootstrapper.SendSessionUpdate();
+    }
+
+    public bool IsUserIdentified() => _session.IsIdentified;
+    public GleapUserProperty? GetIdentity() => _session.Identity;
 
     public void Log(string message, LogLevel level) => _consoleLog.Add(message, level);
     public void TrackEvent(string name, object? data) => _eventLog.Add(name, data);

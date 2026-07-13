@@ -1,4 +1,5 @@
 ﻿using GleapSDK;
+using GleapSDK.Models;
 using GleapFacade = GleapSDK.Gleap;
 
 namespace Gleap.Core.Tests;
@@ -31,6 +32,11 @@ public class GleapFacadeTests
         public void OpenChecklist(string checklistId, bool showBackButton) { }
         public void StartChecklist(string outboundId, bool showBackButton) { }
         public void AskAI(string question, bool showBackButton) { }
+        public Task IdentifyContactAsync(string userId, GleapUserProperty? properties, string? userHash, CancellationToken ct) => Task.CompletedTask;
+        public Task UpdateContactAsync(GleapUserProperty properties, CancellationToken ct) => Task.CompletedTask;
+        public Task ClearIdentityAsync(CancellationToken ct) => Task.CompletedTask;
+        public bool IsUserIdentified() => false;
+        public GleapUserProperty? GetIdentity() => null;
         public void Log(string message, LogLevel level) { }
         public void TrackEvent(string name, object? data) { }
         public void TrackPage(string pageName) { }
