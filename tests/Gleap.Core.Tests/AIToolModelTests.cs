@@ -1,4 +1,4 @@
-using GleapSDK.Models;
+﻿using GleapSDK.Models;
 using GleapSDK.Serialization;
 
 namespace Gleap.Core.Tests;
