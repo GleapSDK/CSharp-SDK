@@ -29,7 +29,8 @@ public static class GleapWebView2Host
             Json = new SystemTextJsonSerializer(),
             Store = new FileKeyValueStore(),
             Channel = channel,
-            Endpoints = resolvedEndpoints
+            Endpoints = resolvedEndpoints,
+            Screenshot = new WindowsScreenshotProvider()
         });
 
         Gleap.UseBackend(backend);

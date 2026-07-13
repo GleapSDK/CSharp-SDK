@@ -1,5 +1,6 @@
 using System;
 using System.Windows;
+using System.Windows.Threading;
 using GleapSDK;
 using GleapSDK.WebView2;
 
@@ -8,6 +9,7 @@ namespace GleapSDK.Sample.Wpf;
 public partial class MainWindow : Window
 {
     private bool _attached;
+    private DispatcherTimer? _outboundTimer;
 
     public MainWindow()
     {
@@ -30,6 +32,7 @@ public partial class MainWindow : Window
             await GleapWebView2Host.AttachAsync(WebView, sdkKey);
             _attached = true;
             StatusText.Text = "Attached. Click Open to show the widget.";
+            StartOutboundPolling();
         }
         catch (Exception ex)
         {
@@ -46,6 +49,23 @@ public partial class MainWindow : Window
     private void OnOpenNews(object sender, RoutedEventArgs e) => Guarded(() => Gleap.OpenNews());
     private void OnTrackEvent(object sender, RoutedEventArgs e) => Guarded(() => Gleap.TrackEvent("sample-button-clicked", null));
     private void OnSetCustomData(object sender, RoutedEventArgs e) => Guarded(() => Gleap.SetCustomData("plan", "pro"));
+
+    private void StartOutboundPolling()
+    {
+        _outboundTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _outboundTimer.Tick += async (_, _) =>
+        {
+            try
+            {
+                await Gleap.CheckOutboundAsync();
+            }
+            catch
+            {
+                // Polling failures are non-fatal.
+            }
+        };
+        _outboundTimer.Start();
+    }
 
     private void Guarded(Action action)
     {
