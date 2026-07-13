@@ -1,4 +1,4 @@
-using GleapSDK.Events;
+﻿using GleapSDK.Events;
 
 namespace Gleap.Core.Tests;
 

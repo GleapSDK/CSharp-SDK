@@ -1,4 +1,4 @@
-using Gleap.Core.Tests.Fakes;
+﻿using Gleap.Core.Tests.Fakes;
 using GleapSDK.Bridge;
 using GleapSDK.Serialization;
 
