@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>GleapSDK.WebView2</RootNamespace>
+    <AssemblyName>Gleap.WebView2</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Version floats to latest 1.0.x; pin after the first successful Windows restore. -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Gleap.Core\Gleap.Core.csproj" />
+  </ItemGroup>
+
+</Project>
