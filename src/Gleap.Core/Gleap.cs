@@ -22,6 +22,8 @@ public static class Gleap
     public static Task InitializeAsync(string token, CancellationToken ct = default) =>
         Backend.InitializeAsync(token, ct);
 
+    public static void RegisterListener(string eventName, System.Action<object?> handler) => Backend.RegisterListener(eventName, handler);
+
     public static void Open() => Backend.Open();
     public static void Close() => Backend.Close();
     public static void StartConversation(bool showBackButton = true) => Backend.StartConversation(showBackButton);

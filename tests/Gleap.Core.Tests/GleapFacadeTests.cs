@@ -13,6 +13,7 @@ public class GleapFacadeTests
         public bool OpenNewsCalled { get; private set; }
 
         public Task InitializeAsync(string token, CancellationToken ct) => Task.CompletedTask;
+        public void RegisterListener(string eventName, Action<object?> handler) { }
         public void Open() => OpenCalled = true;
         public void Close() { }
         public void StartConversation(bool showBackButton) { }

@@ -13,6 +13,7 @@ namespace GleapSDK;
 public interface IGleapBackend
 {
     Task InitializeAsync(string token, CancellationToken ct);
+    void RegisterListener(string eventName, System.Action<object?> handler);
     void Open();
     void Close();
     void StartConversation(bool showBackButton);

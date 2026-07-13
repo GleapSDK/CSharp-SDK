@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using GleapSDK.Bridge;
 using GleapSDK.Collection;
 using GleapSDK.Data;
+using GleapSDK.Events;
 using GleapSDK.Feedback;
 using GleapSDK.Http;
 using GleapSDK.Metadata;
@@ -43,6 +44,7 @@ public sealed class ManagedBackend : IGleapBackend
     private readonly TagStore _tags = new();
     private readonly AttachmentStore _attachments = new();
     private readonly SessionDataCollector _collector;
+    private readonly GleapEventDispatcher _events = new();
 
     /// <summary>The most recently started send-feedback round-trip; exposed so tests can await it.</summary>
     internal Task? LastFeedbackTask { get; private set; }
@@ -63,6 +65,8 @@ public sealed class ManagedBackend : IGleapBackend
     private WebViewBridge Bridge => _bridge ?? throw new System.InvalidOperationException(
         "Gleap is not initialized. Call InitializeAsync before using the messenger.");
 
+    public void RegisterListener(string eventName, System.Action<object?> handler) => _events.Register(eventName, handler);
+
     public async Task InitializeAsync(string token, CancellationToken ct)
     {
         _token = token;
@@ -76,9 +80,14 @@ public sealed class ManagedBackend : IGleapBackend
         _bridge.CollectTicketDataRequested += () =>
             _bridge.Send(new GleapBridgeMessage { Name = "collect-ticket-data", Data = _collector.BuildTicketData() });
         _bridge.SendFeedbackRequested += data => { LastFeedbackTask = HandleSendFeedbackAsync(data); };
+        _bridge.FeedbackFlowStarted += _ => _events.Emit("feedbackFlowStarted");
+        _bridge.CustomActionTriggered += (name, token) =>
+            _events.Emit("customActionTriggered", new Dictionary<string, object?> { ["name"] = name, ["shareToken"] = token });
+        _bridge.ToolExecutionRequested += _ => _events.Emit("toolExecution");
 
         await _session.StartAsync("en", "desktop", ct).ConfigureAwait(false);
         await _config.LoadAsync("en", ct).ConfigureAwait(false);
+        _events.Emit("initialized");
     }
 
     private async Task HandleSendFeedbackAsync(JsonElement data)
@@ -94,6 +103,7 @@ public sealed class ManagedBackend : IGleapBackend
             var body = FeedbackAssembler.Build(_collector.BuildTicketData(), formData, type, null, false, excludeKeys);
             var response = await _api.SubmitBugAsync(body, _session.GleapId, _session.GleapHash, default).ConfigureAwait(false);
             _bridge.Send(new GleapBridgeMessage { Name = "feedback-sent", Data = new Dictionary<string, object?> { ["response"] = response } });
+            _events.Emit("feedbackSent", response);
         }
         catch (System.Exception ex)
         {
@@ -164,17 +174,25 @@ public sealed class ManagedBackend : IGleapBackend
         Email = _session.Identity?.Email
     };
 
-    public void Open() => Bridge.Send(new GleapBridgeMessage
+    public void Open()
     {
-        Name = "widget-status-update",
-        Data = new System.Collections.Generic.Dictionary<string, object> { ["isWidgetOpen"] = true }
-    });
+        Bridge.Send(new GleapBridgeMessage
+        {
+            Name = "widget-status-update",
+            Data = new System.Collections.Generic.Dictionary<string, object> { ["isWidgetOpen"] = true }
+        });
+        _events.Emit("widgetOpened");
+    }
 
-    public void Close() => Bridge.Send(new GleapBridgeMessage
+    public void Close()
     {
-        Name = "widget-status-update",
-        Data = new System.Collections.Generic.Dictionary<string, object> { ["isWidgetOpen"] = false }
-    });
+        Bridge.Send(new GleapBridgeMessage
+        {
+            Name = "widget-status-update",
+            Data = new System.Collections.Generic.Dictionary<string, object> { ["isWidgetOpen"] = false }
+        });
+        _events.Emit("widgetClosed");
+    }
 
     public void StartConversation(bool showBackButton) => Bridge.Send(WidgetCommands.StartConversation(showBackButton));
     public void StartBot(string botId, bool showBackButton) => Bridge.Send(WidgetCommands.StartBot(botId, showBackButton));
