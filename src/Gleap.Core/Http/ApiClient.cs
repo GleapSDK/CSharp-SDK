@@ -154,4 +154,17 @@ public sealed class ApiClient
             throw new GleapApiException(res.StatusCode, $"Update contact failed with status {res.StatusCode}");
         }
     }
+
+    /// <summary>POST /bugs/v2 with the assembled report body. Returns the raw response JSON.</summary>
+    public async Task<string> SubmitBugAsync(
+        IReadOnlyDictionary<string, object?> body, string? gleapId, string? gleapHash, CancellationToken ct)
+    {
+        var res = await _http.SendAsync("POST", _endpoints.ApiUrl + "/bugs/v2",
+            _json.Serialize(body), BaseHeaders(gleapId, gleapHash), ct).ConfigureAwait(false);
+        if (!res.IsSuccess)
+        {
+            throw new GleapApiException(res.StatusCode, $"Bug submission failed with status {res.StatusCode}");
+        }
+        return res.Body;
+    }
 }
