@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GleapSDK;
@@ -19,4 +20,19 @@ public interface IGleapBackend
     void OpenHelpCenter(bool showBackButton);
     void OpenNews(bool showBackButton);
     void ShowSurvey(string surveyId, SurveyFormat format);
+    void Log(string message, LogLevel level);
+    void TrackEvent(string name, object? data);
+    void TrackPage(string pageName);
+    void SetCustomData(string key, string value);
+    void AttachCustomData(IReadOnlyDictionary<string, object> data);
+    void RemoveCustomDataForKey(string key);
+    void ClearCustomData();
+    void SetTicketAttribute(string key, object value);
+    void UnsetTicketAttribute(string key);
+    void ClearTicketAttributes();
+    void SetTags(string[] tags);
+    void AddAttachment(string base64File, string fileName);
+    void RemoveAllAttachments();
+    void SetNetworkLogsBlacklist(string[] blacklist);
+    void SetNetworkLogPropsToIgnore(string[] propsToIgnore);
 }

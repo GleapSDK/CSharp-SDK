@@ -20,6 +20,21 @@ public class GleapFacadeTests
         public void OpenHelpCenter(bool showBackButton) { }
         public void OpenNews(bool showBackButton) => OpenNewsCalled = true;
         public void ShowSurvey(string surveyId, SurveyFormat format) { }
+        public void Log(string message, LogLevel level) { }
+        public void TrackEvent(string name, object? data) { }
+        public void TrackPage(string pageName) { }
+        public void SetCustomData(string key, string value) { }
+        public void AttachCustomData(IReadOnlyDictionary<string, object> data) { }
+        public void RemoveCustomDataForKey(string key) { }
+        public void ClearCustomData() { }
+        public void SetTicketAttribute(string key, object value) { }
+        public void UnsetTicketAttribute(string key) { }
+        public void ClearTicketAttributes() { }
+        public void SetTags(string[] tags) { }
+        public void AddAttachment(string base64File, string fileName) { }
+        public void RemoveAllAttachments() { }
+        public void SetNetworkLogsBlacklist(string[] blacklist) { }
+        public void SetNetworkLogPropsToIgnore(string[] propsToIgnore) { }
     }
 
     [Fact]

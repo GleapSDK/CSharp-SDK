@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GleapSDK;
@@ -29,6 +30,22 @@ public static class Gleap
     public static void OpenHelpCenter(bool showBackButton = true) => Backend.OpenHelpCenter(showBackButton);
     public static void OpenNews(bool showBackButton = true) => Backend.OpenNews(showBackButton);
     public static void ShowSurvey(string surveyId, SurveyFormat format = SurveyFormat.Survey) => Backend.ShowSurvey(surveyId, format);
+
+    public static void Log(string message, LogLevel level = LogLevel.Info) => Backend.Log(message, level);
+    public static void TrackEvent(string name, object? data = null) => Backend.TrackEvent(name, data);
+    public static void TrackPage(string pageName) => Backend.TrackPage(pageName);
+    public static void SetCustomData(string key, string value) => Backend.SetCustomData(key, value);
+    public static void AttachCustomData(IReadOnlyDictionary<string, object> data) => Backend.AttachCustomData(data);
+    public static void RemoveCustomDataForKey(string key) => Backend.RemoveCustomDataForKey(key);
+    public static void ClearCustomData() => Backend.ClearCustomData();
+    public static void SetTicketAttribute(string key, object value) => Backend.SetTicketAttribute(key, value);
+    public static void UnsetTicketAttribute(string key) => Backend.UnsetTicketAttribute(key);
+    public static void ClearTicketAttributes() => Backend.ClearTicketAttributes();
+    public static void SetTags(string[] tags) => Backend.SetTags(tags);
+    public static void AddAttachment(string base64File, string fileName) => Backend.AddAttachment(base64File, fileName);
+    public static void RemoveAllAttachments() => Backend.RemoveAllAttachments();
+    public static void SetNetworkLogsBlacklist(string[] blacklist) => Backend.SetNetworkLogsBlacklist(blacklist);
+    public static void SetNetworkLogPropsToIgnore(string[] propsToIgnore) => Backend.SetNetworkLogPropsToIgnore(propsToIgnore);
 
     /// <summary>Test-only reset so xUnit cases don't leak backend state.</summary>
     internal static void ResetForTest() => _backend = null;
