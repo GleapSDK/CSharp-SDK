@@ -52,6 +52,7 @@ public class GleapFacadeTests
         public void RemoveAllAttachments() { }
         public void SetNetworkLogsBlacklist(string[] blacklist) { }
         public void SetNetworkLogPropsToIgnore(string[] propsToIgnore) { }
+        public Task SendSilentCrashReportAsync(string description, Severity severity, IReadOnlyDictionary<string, object>? excludeData, CancellationToken ct) => Task.CompletedTask;
     }
 
     [Fact]

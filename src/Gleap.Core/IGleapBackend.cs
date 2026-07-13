@@ -52,4 +52,5 @@ public interface IGleapBackend
     void RemoveAllAttachments();
     void SetNetworkLogsBlacklist(string[] blacklist);
     void SetNetworkLogPropsToIgnore(string[] propsToIgnore);
+    Task SendSilentCrashReportAsync(string description, Severity severity, IReadOnlyDictionary<string, object>? excludeData, CancellationToken ct);
 }

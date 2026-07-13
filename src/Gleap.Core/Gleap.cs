@@ -62,6 +62,7 @@ public static class Gleap
     public static void RemoveAllAttachments() => Backend.RemoveAllAttachments();
     public static void SetNetworkLogsBlacklist(string[] blacklist) => Backend.SetNetworkLogsBlacklist(blacklist);
     public static void SetNetworkLogPropsToIgnore(string[] propsToIgnore) => Backend.SetNetworkLogPropsToIgnore(propsToIgnore);
+    public static Task SendSilentCrashReportAsync(string description, Severity severity, IReadOnlyDictionary<string, object>? excludeData = null, CancellationToken ct = default) => Backend.SendSilentCrashReportAsync(description, severity, excludeData, ct);
 
     /// <summary>Test-only reset so xUnit cases don't leak backend state.</summary>
     internal static void ResetForTest() => _backend = null;

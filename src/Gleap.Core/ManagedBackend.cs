@@ -1,9 +1,11 @@
 ﻿using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GleapSDK.Bridge;
 using GleapSDK.Collection;
 using GleapSDK.Data;
+using GleapSDK.Feedback;
 using GleapSDK.Http;
 using GleapSDK.Metadata;
 using GleapSDK.Models;
@@ -28,6 +30,7 @@ public sealed class ManagedBackend : IGleapBackend
 
     private readonly Dependencies _d;
     private WebViewBridge _bridge = null!;
+    private ApiClient _api = null!;
     private SessionManager _session = null!;
     private ConfigManager _config = null!;
     private WidgetBootstrapper _bootstrapper = null!;
@@ -40,6 +43,9 @@ public sealed class ManagedBackend : IGleapBackend
     private readonly TagStore _tags = new();
     private readonly AttachmentStore _attachments = new();
     private readonly SessionDataCollector _collector;
+
+    /// <summary>The most recently started send-feedback round-trip; exposed so tests can await it.</summary>
+    internal Task? LastFeedbackTask { get; private set; }
 
     public ManagedBackend(Dependencies dependencies)
     {
@@ -60,18 +66,88 @@ public sealed class ManagedBackend : IGleapBackend
     public async Task InitializeAsync(string token, CancellationToken ct)
     {
         _token = token;
-        var api = new ApiClient(_d.Http, _d.Json, _d.Endpoints, token);
-        _session = new SessionManager(api, _d.Store);
-        _config = new ConfigManager(api);
+        _api = new ApiClient(_d.Http, _d.Json, _d.Endpoints, token);
+        _session = new SessionManager(_api, _d.Store);
+        _config = new ConfigManager(_api);
 
         _bridge = new WebViewBridge(_d.Channel, _d.Json);
         _bootstrapper = new WidgetBootstrapper(_bridge, BuildSnapshot);
 
         _bridge.CollectTicketDataRequested += () =>
             _bridge.Send(new GleapBridgeMessage { Name = "collect-ticket-data", Data = _collector.BuildTicketData() });
+        _bridge.SendFeedbackRequested += data => { LastFeedbackTask = HandleSendFeedbackAsync(data); };
 
         await _session.StartAsync("en", "desktop", ct).ConfigureAwait(false);
         await _config.LoadAsync("en", ct).ConfigureAwait(false);
+    }
+
+    private async Task HandleSendFeedbackAsync(JsonElement data)
+    {
+        var formData = ReadObject(data, "formData");
+        var action = data.ValueKind == JsonValueKind.Object && data.TryGetProperty("action", out var a) ? a : default;
+        var type = action.ValueKind == JsonValueKind.Object && action.TryGetProperty("feedbackType", out var ft)
+            && ft.ValueKind == JsonValueKind.String ? ft.GetString()! : "BUG";
+        var excludeKeys = ReadExcludeKeys(action);
+
+        try
+        {
+            var body = FeedbackAssembler.Build(_collector.BuildTicketData(), formData, type, null, false, excludeKeys);
+            var response = await _api.SubmitBugAsync(body, _session.GleapId, _session.GleapHash, default).ConfigureAwait(false);
+            _bridge.Send(new GleapBridgeMessage { Name = "feedback-sent", Data = new Dictionary<string, object?> { ["response"] = response } });
+        }
+        catch (System.Exception ex)
+        {
+            _bridge.Send(new GleapBridgeMessage { Name = "feedback-sending-failed", Data = ex.Message });
+        }
+    }
+
+    /// <summary>Silently submits a <c>CRASH</c> report without any widget interaction.</summary>
+    public async Task SendSilentCrashReportAsync(
+        string description, Severity severity, IReadOnlyDictionary<string, object>? excludeData, CancellationToken ct)
+    {
+        var priority = severity switch
+        {
+            Severity.High => "HIGH",
+            Severity.Medium => "MEDIUM",
+            _ => "LOW"
+        };
+        var excludeKeys = excludeData != null
+            ? new HashSet<string>(excludeData.Keys)
+            : new HashSet<string> { "screenshot", "replays", "attachments" };
+        var formData = new Dictionary<string, object?> { ["description"] = description };
+        var body = FeedbackAssembler.Build(_collector.BuildTicketData(), formData, "CRASH", priority, true, excludeKeys);
+        await _api.SubmitBugAsync(body, _session.GleapId, _session.GleapHash, ct).ConfigureAwait(false);
+    }
+
+    private static Dictionary<string, object?> ReadObject(JsonElement parent, string name)
+    {
+        var result = new Dictionary<string, object?>();
+        if (parent.ValueKind == JsonValueKind.Object && parent.TryGetProperty(name, out var obj)
+            && obj.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var prop in obj.EnumerateObject())
+            {
+                result[prop.Name] = prop.Value.Clone();
+            }
+        }
+        return result;
+    }
+
+    private static HashSet<string> ReadExcludeKeys(JsonElement action)
+    {
+        var keys = new HashSet<string>();
+        if (action.ValueKind == JsonValueKind.Object && action.TryGetProperty("excludeData", out var ex)
+            && ex.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var prop in ex.EnumerateObject())
+            {
+                if (prop.Value.ValueKind == JsonValueKind.True)
+                {
+                    keys.Add(prop.Name);
+                }
+            }
+        }
+        return keys;
     }
 
     private SessionSnapshot BuildSnapshot() => new()
