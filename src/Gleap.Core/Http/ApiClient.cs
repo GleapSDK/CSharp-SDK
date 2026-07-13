@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GleapSDK.Models;
+using GleapSDK.Outbound;
 using GleapSDK.Serialization;
 
 namespace GleapSDK.Http;
@@ -166,5 +167,44 @@ public sealed class ApiClient
             throw new GleapApiException(res.StatusCode, $"Bug submission failed with status {res.StatusCode}");
         }
         return res.Body;
+    }
+
+    /// <summary>POST /sessions/ping. Flushes buffered events and returns outbound actions + unread count.</summary>
+    public async Task<PingResponse> PingAsync(
+        long time, IReadOnlyList<object?> events, bool opened,
+        string? gleapId, string? gleapHash, CancellationToken ct)
+    {
+        var body = _json.Serialize(new Dictionary<string, object?>
+        {
+            ["time"] = time,
+            ["events"] = events,
+            ["opened"] = opened,
+            ["ws"] = false,
+            ["type"] = "windows",
+            ["sdkVersion"] = "0.1.0"
+        });
+        var res = await _http.SendAsync("POST", _endpoints.ApiUrl + "/sessions/ping",
+            body, BaseHeaders(gleapId, gleapHash), ct).ConfigureAwait(false);
+        if (!res.IsSuccess)
+        {
+            throw new GleapApiException(res.StatusCode, $"Ping failed with status {res.StatusCode}");
+        }
+
+        using var doc = JsonDocument.Parse(res.Body);
+        var root = doc.RootElement;
+        var actions = new List<OutboundAction>();
+        if (root.TryGetProperty("a", out var arr) && arr.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in arr.EnumerateArray())
+            {
+                var actionType = item.TryGetProperty("actionType", out var at) && at.ValueKind == JsonValueKind.String
+                    ? at.GetString()! : "";
+                var outboundId = item.TryGetProperty("outbound", out var ob) && ob.ValueKind == JsonValueKind.String
+                    ? ob.GetString() : null;
+                actions.Add(new OutboundAction(actionType, outboundId, item.Clone()));
+            }
+        }
+        var unread = root.TryGetProperty("u", out var u) && u.ValueKind == JsonValueKind.Number ? u.GetInt32() : 0;
+        return new PingResponse(actions, unread);
     }
 }
