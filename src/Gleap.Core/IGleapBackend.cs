@@ -55,4 +55,14 @@ public interface IGleapBackend
     void SetNetworkLogsBlacklist(string[] blacklist);
     void SetNetworkLogPropsToIgnore(string[] propsToIgnore);
     Task SendSilentCrashReportAsync(string description, Severity severity, IReadOnlyDictionary<string, object>? excludeData, CancellationToken ct);
+    void SetLanguage(string language);
+    bool IsOpened();
+    void ShowFeedbackButton(bool visible);
+    void SetDisableInAppNotifications(bool disable);
+    void PreFillForm(IReadOnlyDictionary<string, object?> formData);
+    void StartNetworkLogging();
+    void StopNetworkLogging();
+    void EnableDebugConsoleLog();
+    void DisableConsoleLog();
+    void SetActivationMethods(ActivationMethod[] activationMethods);
 }

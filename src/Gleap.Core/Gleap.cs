@@ -67,6 +67,17 @@ public static class Gleap
     public static void SetNetworkLogPropsToIgnore(string[] propsToIgnore) => Backend.SetNetworkLogPropsToIgnore(propsToIgnore);
     public static Task SendSilentCrashReportAsync(string description, Severity severity, IReadOnlyDictionary<string, object>? excludeData = null, CancellationToken ct = default) => Backend.SendSilentCrashReportAsync(description, severity, excludeData, ct);
 
+    public static void SetLanguage(string language) => Backend.SetLanguage(language);
+    public static bool IsOpened() => Backend.IsOpened();
+    public static void ShowFeedbackButton(bool visible) => Backend.ShowFeedbackButton(visible);
+    public static void SetDisableInAppNotifications(bool disable) => Backend.SetDisableInAppNotifications(disable);
+    public static void PreFillForm(IReadOnlyDictionary<string, object?> formData) => Backend.PreFillForm(formData);
+    public static void StartNetworkLogging() => Backend.StartNetworkLogging();
+    public static void StopNetworkLogging() => Backend.StopNetworkLogging();
+    public static void EnableDebugConsoleLog() => Backend.EnableDebugConsoleLog();
+    public static void DisableConsoleLog() => Backend.DisableConsoleLog();
+    public static void SetActivationMethods(ActivationMethod[] activationMethods) => Backend.SetActivationMethods(activationMethods);
+
     /// <summary>Test-only reset so xUnit cases don't leak backend state.</summary>
     internal static void ResetForTest() => _backend = null;
 }

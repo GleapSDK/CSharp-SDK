@@ -46,6 +46,11 @@ public sealed class ManagedBackend : IGleapBackend
     private readonly SessionDataCollector _collector;
     private readonly GleapEventDispatcher _events = new();
     private bool _widgetOpen;
+    private string _language = "en";
+    private bool _feedbackButtonVisible;
+    private bool _inAppNotificationsDisabled;
+    private IReadOnlyDictionary<string, object?>? _prefill;
+    private IReadOnlyList<ActivationMethod> _activationMethods = System.Array.Empty<ActivationMethod>();
 
     /// <summary>The most recently started send-feedback round-trip; exposed so tests can await it.</summary>
     internal Task? LastFeedbackTask { get; private set; }
@@ -86,8 +91,8 @@ public sealed class ManagedBackend : IGleapBackend
             _events.Emit("customActionTriggered", new Dictionary<string, object?> { ["name"] = name, ["shareToken"] = token });
         _bridge.ToolExecutionRequested += _ => _events.Emit("toolExecution");
 
-        await _session.StartAsync("en", "desktop", ct).ConfigureAwait(false);
-        await _config.LoadAsync("en", ct).ConfigureAwait(false);
+        await _session.StartAsync(_language, "desktop", ct).ConfigureAwait(false);
+        await _config.LoadAsync(_language, ct).ConfigureAwait(false);
         _events.Emit("initialized");
     }
 
@@ -169,10 +174,11 @@ public sealed class ManagedBackend : IGleapBackend
         GleapHash = _session.GleapHash,
         FlowConfigJson = _config.FlowConfigJson,
         ProjectActionsJson = _config.ProjectActionsJson,
-        Language = "en",
+        Language = _language,
         UserId = _session.Identity?.UserId,
         Name = _session.Identity?.Name,
-        Email = _session.Identity?.Email
+        Email = _session.Identity?.Email,
+        PreFillFormData = _prefill
     };
 
     public void Open()
@@ -293,4 +299,21 @@ public sealed class ManagedBackend : IGleapBackend
     public void RemoveAllAttachments() => _attachments.Clear();
     public void SetNetworkLogsBlacklist(string[] blacklist) => _networkLog.SetBlacklist(blacklist);
     public void SetNetworkLogPropsToIgnore(string[] propsToIgnore) => _networkLog.SetPropsToIgnore(propsToIgnore);
+
+    public void SetLanguage(string language) => _language = language;
+    public bool IsOpened() => _widgetOpen;
+    public void ShowFeedbackButton(bool visible) => _feedbackButtonVisible = visible;
+    public void SetDisableInAppNotifications(bool disable) => _inAppNotificationsDisabled = disable;
+
+    public void PreFillForm(IReadOnlyDictionary<string, object?> formData)
+    {
+        _prefill = formData;
+        _bootstrapper.SendPrefill();
+    }
+
+    public void StartNetworkLogging() => _networkLog.Enabled = true;
+    public void StopNetworkLogging() => _networkLog.Enabled = false;
+    public void EnableDebugConsoleLog() => _consoleLog.Enabled = true;
+    public void DisableConsoleLog() => _consoleLog.Enabled = false;
+    public void SetActivationMethods(ActivationMethod[] activationMethods) => _activationMethods = activationMethods;
 }

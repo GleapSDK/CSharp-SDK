@@ -70,7 +70,8 @@ public sealed class WidgetBootstrapper
         });
     }
 
-    private void SendPrefill()
+    /// <summary>Sends prefill-form-data from the current snapshot, if any is set. Called on ping and again after <see cref="GleapSDK.ManagedBackend.PreFillForm"/>.</summary>
+    public void SendPrefill()
     {
         var s = _snapshot();
         if (s.PreFillFormData != null)

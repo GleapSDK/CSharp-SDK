@@ -55,6 +55,16 @@ public class GleapFacadeTests
         public void SetNetworkLogsBlacklist(string[] blacklist) { }
         public void SetNetworkLogPropsToIgnore(string[] propsToIgnore) { }
         public Task SendSilentCrashReportAsync(string description, Severity severity, IReadOnlyDictionary<string, object>? excludeData, CancellationToken ct) => Task.CompletedTask;
+        public void SetLanguage(string language) { }
+        public bool IsOpened() => false;
+        public void ShowFeedbackButton(bool visible) { }
+        public void SetDisableInAppNotifications(bool disable) { }
+        public void PreFillForm(IReadOnlyDictionary<string, object?> formData) { }
+        public void StartNetworkLogging() { }
+        public void StopNetworkLogging() { }
+        public void EnableDebugConsoleLog() { }
+        public void DisableConsoleLog() { }
+        public void SetActivationMethods(ActivationMethod[] activationMethods) { }
     }
 
     [Fact]
