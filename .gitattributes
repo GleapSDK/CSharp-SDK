@@ -1,0 +1,21 @@
+# Normalize line endings; let Git handle EOL conversion.
+* text=auto
+
+# Explicitly treat source/text as text.
+*.cs        text
+*.csproj    text
+*.sln       text
+*.props     text
+*.json      text
+*.xml       text
+*.xaml      text
+*.md        text
+*.asmdef    text
+*.yml       text
+*.editorconfig text
+
+# Binary assets (never diff/merge as text).
+*.png       binary
+*.jpg       binary
+*.dll       binary
+*.snk       binary

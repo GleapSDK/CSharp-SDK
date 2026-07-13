@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  core:
+    name: Build & test Gleap.Core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      # Only Gleap.sln (Gleap.Core + tests) is cross-platform.
+      # Gleap.Windows.sln and the Unity/MAUI packages require Windows / platform
+      # workloads and are intentionally excluded from Linux CI.
+      - name: Restore
+        run: dotnet restore Gleap.sln
+
+      # -warnaserror + EnforceCodeStyleInBuild (in Directory.Build.props) enforces analyzers
+      # and code style as part of the build, so a separate `dotnet format` step is redundant.
+      - name: Build (warnings + code style as errors)
+        run: dotnet build Gleap.sln -c Release -warnaserror --no-restore
+
+      - name: Test
+        run: dotnet test Gleap.sln -c Release --no-build --verbosity normal
