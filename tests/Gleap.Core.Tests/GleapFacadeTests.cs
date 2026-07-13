@@ -65,6 +65,7 @@ public class GleapFacadeTests
         public void EnableDebugConsoleLog() { }
         public void DisableConsoleLog() { }
         public void SetActivationMethods(ActivationMethod[] activationMethods) { }
+        public void SetAiTools(AITool[] tools) { }
     }
 
     [Fact]

@@ -65,4 +65,5 @@ public interface IGleapBackend
     void EnableDebugConsoleLog();
     void DisableConsoleLog();
     void SetActivationMethods(ActivationMethod[] activationMethods);
+    void SetAiTools(GleapSDK.Models.AITool[] tools);
 }

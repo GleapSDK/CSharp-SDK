@@ -51,6 +51,7 @@ public sealed class ManagedBackend : IGleapBackend
     private bool _inAppNotificationsDisabled;
     private IReadOnlyDictionary<string, object?>? _prefill;
     private IReadOnlyList<ActivationMethod> _activationMethods = System.Array.Empty<ActivationMethod>();
+    private System.Collections.Generic.IReadOnlyList<GleapSDK.Models.AITool> _aiTools = System.Array.Empty<GleapSDK.Models.AITool>();
 
     /// <summary>The most recently started send-feedback round-trip; exposed so tests can await it.</summary>
     internal Task? LastFeedbackTask { get; private set; }
@@ -178,7 +179,8 @@ public sealed class ManagedBackend : IGleapBackend
         UserId = _session.Identity?.UserId,
         Name = _session.Identity?.Name,
         Email = _session.Identity?.Email,
-        PreFillFormData = _prefill
+        PreFillFormData = _prefill,
+        AiTools = _aiTools
     };
 
     public void Open()
@@ -316,4 +318,10 @@ public sealed class ManagedBackend : IGleapBackend
     public void EnableDebugConsoleLog() => _consoleLog.Enabled = true;
     public void DisableConsoleLog() => _consoleLog.Enabled = false;
     public void SetActivationMethods(ActivationMethod[] activationMethods) => _activationMethods = activationMethods;
+
+    public void SetAiTools(GleapSDK.Models.AITool[] tools)
+    {
+        _aiTools = tools;
+        _bootstrapper.SendConfigUpdate();
+    }
 }

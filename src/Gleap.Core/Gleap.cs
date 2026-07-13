@@ -77,6 +77,7 @@ public static class Gleap
     public static void EnableDebugConsoleLog() => Backend.EnableDebugConsoleLog();
     public static void DisableConsoleLog() => Backend.DisableConsoleLog();
     public static void SetActivationMethods(ActivationMethod[] activationMethods) => Backend.SetActivationMethods(activationMethods);
+    public static void SetAiTools(Models.AITool[] tools) => Backend.SetAiTools(tools);
 
     /// <summary>Test-only reset so xUnit cases don't leak backend state.</summary>
     internal static void ResetForTest() => _backend = null;
