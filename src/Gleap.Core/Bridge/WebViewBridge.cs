@@ -12,6 +12,7 @@ public sealed partial class WebViewBridge
 {
     private readonly IWebViewChannel _channel;
     private readonly IJsonSerializer _json;
+    // NOTE (SP-1): WebViewBridge assumes single-threaded use; real WebView threading + synchronization is handled in SP-1.
     private readonly Queue<GleapBridgeMessage> _queue = new();
     private bool _connected;
 

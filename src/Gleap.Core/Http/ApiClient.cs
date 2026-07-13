@@ -50,13 +50,30 @@ public sealed class ApiClient
         var res = await _http.SendAsync("POST", _endpoints.ApiUrl + "/sessions", body,
             BaseHeaders(guestId, guestHash), ct).ConfigureAwait(false);
 
-        using var doc = JsonDocument.Parse(res.Body);
-        var root = doc.RootElement;
-        return new SessionResult
+        if (!res.IsSuccess)
         {
-            GleapId = root.TryGetProperty("gleapId", out var i) ? i.GetString() ?? "" : "",
-            GleapHash = root.TryGetProperty("gleapHash", out var hsh) ? hsh.GetString() ?? "" : ""
-        };
+            throw new GleapApiException(res.StatusCode, $"Session request failed with status {res.StatusCode}");
+        }
+
+        JsonDocument doc;
+        try
+        {
+            doc = JsonDocument.Parse(res.Body);
+        }
+        catch (JsonException)
+        {
+            throw new GleapApiException(res.StatusCode, "Session response body was not valid JSON");
+        }
+
+        using (doc)
+        {
+            var root = doc.RootElement;
+            return new SessionResult
+            {
+                GleapId = root.TryGetProperty("gleapId", out var i) ? i.GetString() ?? "" : "",
+                GleapHash = root.TryGetProperty("gleapHash", out var hsh) ? hsh.GetString() ?? "" : ""
+            };
+        }
     }
 
     /// <summary>Returns the raw config JSON body for ConfigManager to split.</summary>
@@ -65,6 +82,12 @@ public sealed class ApiClient
         var url = _endpoints.ApiUrl + "/config/" + _sdkKey + "?lang=" + lang;
         var res = await _http.SendAsync("GET", url, null, BaseHeaders(null, null), ct)
             .ConfigureAwait(false);
+
+        if (!res.IsSuccess)
+        {
+            throw new GleapApiException(res.StatusCode, $"Config request failed with status {res.StatusCode}");
+        }
+
         return res.Body;
     }
 }

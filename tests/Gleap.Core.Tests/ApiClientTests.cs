@@ -54,4 +54,15 @@ public class ApiClientTests
         Assert.Equal("https://api.gleap.io/config/sdk-key-123?lang=de", call.Url);
         Assert.Contains("flowConfig", raw);
     }
+
+    [Fact]
+    public async Task CreateSession_NonSuccess_Throws()
+    {
+        var t = new FakeHttpTransport();
+        t.Responses.Enqueue(new HttpResult(500, "err"));
+        var client = NewClient(t);
+
+        await Assert.ThrowsAsync<GleapApiException>(() =>
+            client.CreateSessionAsync("en", "desktop", null, null, CancellationToken.None));
+    }
 }

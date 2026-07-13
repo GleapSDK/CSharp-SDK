@@ -27,6 +27,9 @@ public sealed class ManagedBackend : IGleapBackend
 
     public ManagedBackend(Dependencies dependencies) => _d = dependencies;
 
+    private WebViewBridge Bridge => _bridge ?? throw new System.InvalidOperationException(
+        "Gleap is not initialized. Call InitializeAsync before using the messenger.");
+
     public async Task InitializeAsync(string token, CancellationToken ct)
     {
         _token = token;
@@ -52,22 +55,22 @@ public sealed class ManagedBackend : IGleapBackend
         Language = "en"
     };
 
-    public void Open() => _bridge.Send(new GleapBridgeMessage
+    public void Open() => Bridge.Send(new GleapBridgeMessage
     {
         Name = "widget-status-update",
         Data = new System.Collections.Generic.Dictionary<string, object> { ["isWidgetOpen"] = true }
     });
 
-    public void Close() => _bridge.Send(new GleapBridgeMessage
+    public void Close() => Bridge.Send(new GleapBridgeMessage
     {
         Name = "widget-status-update",
         Data = new System.Collections.Generic.Dictionary<string, object> { ["isWidgetOpen"] = false }
     });
 
-    public void StartConversation(bool showBackButton) => _bridge.Send(WidgetCommands.StartConversation(showBackButton));
-    public void StartBot(string botId, bool showBackButton) => _bridge.Send(WidgetCommands.StartBot(botId, showBackButton));
-    public void OpenConversation(string shareToken) => _bridge.Send(WidgetCommands.OpenConversation(shareToken));
-    public void OpenHelpCenter(bool showBackButton) => _bridge.Send(WidgetCommands.OpenHelpCenter(showBackButton));
-    public void OpenNews(bool showBackButton) => _bridge.Send(WidgetCommands.OpenNews(showBackButton));
-    public void ShowSurvey(string surveyId, SurveyFormat format) => _bridge.Send(WidgetCommands.StartSurvey(surveyId, format));
+    public void StartConversation(bool showBackButton) => Bridge.Send(WidgetCommands.StartConversation(showBackButton));
+    public void StartBot(string botId, bool showBackButton) => Bridge.Send(WidgetCommands.StartBot(botId, showBackButton));
+    public void OpenConversation(string shareToken) => Bridge.Send(WidgetCommands.OpenConversation(shareToken));
+    public void OpenHelpCenter(bool showBackButton) => Bridge.Send(WidgetCommands.OpenHelpCenter(showBackButton));
+    public void OpenNews(bool showBackButton) => Bridge.Send(WidgetCommands.OpenNews(showBackButton));
+    public void ShowSurvey(string surveyId, SurveyFormat format) => Bridge.Send(WidgetCommands.StartSurvey(surveyId, format));
 }

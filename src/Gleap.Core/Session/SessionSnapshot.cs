@@ -2,7 +2,7 @@
 
 namespace GleapSDK.Session;
 
-/// <summary>Immutable view of everything the bootstrap sequence needs.</summary>
+/// <summary>Snapshot of everything the bootstrap sequence needs, rebuilt fresh on each ping.</summary>
 public sealed class SessionSnapshot
 {
     public string SdkKey { get; set; } = "";

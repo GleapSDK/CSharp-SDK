@@ -29,7 +29,11 @@ public static class WidgetCommands
         new() { Name = "open-conversations", Data = Hide(showBackButton) };
 
     public static GleapBridgeMessage OpenConversation(string shareToken) =>
-        new() { Name = "open-conversation", Data = new Dictionary<string, object> { ["shareToken"] = shareToken } };
+        new()
+        {
+            Name = "open-conversation",
+            Data = new Dictionary<string, object> { ["shareToken"] = shareToken, ["hideBackButton"] = false }
+        };
 
     public static GleapBridgeMessage StartClassicForm(string formId, bool showBackButton) =>
         new() { Name = "start-feedbackflow", Data = Hide(showBackButton, ("flow", formId)) };
@@ -78,7 +82,7 @@ public static class WidgetCommands
                 ["flow"] = surveyId,
                 ["isSurvey"] = true,
                 ["format"] = formatStr,
-                ["hideBackButton"] = false
+                ["hideBackButton"] = true
             }
         };
     }

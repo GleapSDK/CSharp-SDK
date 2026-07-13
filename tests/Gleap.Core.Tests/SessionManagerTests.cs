@@ -54,4 +54,16 @@ public class SessionManagerTests
         Assert.Null(store.Get("gleapId"));
         Assert.Equal("", sm.GleapId);
     }
+
+    [Fact]
+    public async Task Start_DoesNotWipeStoredIds_WhenResponseEmpty()
+    {
+        var (sm, store, http) = New();
+        store.Set("gleapId", "guest");
+        http.Responses.Enqueue(new HttpResult(200, "{}"));
+
+        await sm.StartAsync("en", "desktop", CancellationToken.None);
+
+        Assert.Equal("guest", store.Get("gleapId"));
+    }
 }

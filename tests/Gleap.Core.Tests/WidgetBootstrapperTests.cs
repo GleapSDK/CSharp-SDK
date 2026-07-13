@@ -28,9 +28,9 @@ public class WidgetBootstrapperTests
 
         var names = ch.ExecutedScripts;
         int Idx(string n) => names.FindIndex(s => s.Contains("\"name\":\"" + n + "\""));
-        Assert.True(Idx("widget-status-update") >= 0);
-        Assert.True(Idx("config-update") > Idx("widget-status-update"));
+        Assert.True(Idx("config-update") >= 0);
         Assert.True(Idx("session-update") > Idx("config-update"));
+        Assert.Equal(-1, Idx("widget-status-update"));
     }
 
     [Fact]

@@ -78,4 +78,16 @@ public class WebViewBridgeIncomingTests
 
         Assert.True(started);
     }
+
+    [Fact]
+    public void MalformedJson_IsIgnored()
+    {
+        var ch = new FakeWebViewChannel();
+        var bridge = NewBridge(ch);
+
+        var ex = Record.Exception(() => ch.SimulateIncoming("not-json"));
+
+        Assert.Null(ex);
+        Assert.False(bridge.IsConnected);
+    }
 }

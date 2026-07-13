@@ -7,8 +7,10 @@ namespace GleapSDK.Session;
 
 /// <summary>
 /// Subscribes to the bridge's ping handshake and pushes the mandatory bootstrap
-/// sequence (widget-status-update -> config-update -> session-update ->
-/// prefill-form-data), before the bridge flushes queued navigation commands.
+/// sequence (config-update -> session-update -> prefill-form-data), before the
+/// bridge flushes queued navigation commands. <c>widget-status-update</c> is not
+/// sent here — <see cref="GleapSDK.ManagedBackend.Open"/> is the sole source of that
+/// message, matching the native SDKs' order (config/session/flush, then open).
 /// </summary>
 public sealed class WidgetBootstrapper
 {
@@ -25,12 +27,6 @@ public sealed class WidgetBootstrapper
     private void OnPing()
     {
         var s = _snapshot();
-
-        _bridge.Send(new GleapBridgeMessage
-        {
-            Name = "widget-status-update",
-            Data = new Dictionary<string, object> { ["isWidgetOpen"] = true }
-        });
 
         _bridge.Send(new GleapBridgeMessage
         {

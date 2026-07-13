@@ -30,10 +30,13 @@ public sealed class SessionManager
         var res = await _api.CreateSessionAsync(lang, deviceType, guestId, guestHash, ct)
             .ConfigureAwait(false);
 
-        GleapId = res.GleapId;
-        GleapHash = res.GleapHash;
-        _store.Set(KeyId, GleapId);
-        _store.Set(KeyHash, GleapHash);
+        if (!string.IsNullOrEmpty(res.GleapId))
+        {
+            GleapId = res.GleapId;
+            GleapHash = res.GleapHash;
+            _store.Set(KeyId, GleapId);
+            _store.Set(KeyHash, GleapHash);
+        }
     }
 
     public void ClearIdentity()
