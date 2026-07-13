@@ -2,6 +2,7 @@
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using GleapSDK.Models;
 using GleapSDK.Serialization;
 
 namespace GleapSDK.Http;
@@ -89,5 +90,68 @@ public sealed class ApiClient
         }
 
         return res.Body;
+    }
+
+    private static Dictionary<string, object?> ToDict(GleapUserProperty p) => new()
+    {
+        ["userId"] = p.UserId,
+        ["name"] = p.Name,
+        ["email"] = p.Email,
+        ["phone"] = p.Phone,
+        ["plan"] = p.Plan,
+        ["companyName"] = p.CompanyName,
+        ["companyId"] = p.CompanyId,
+        ["avatar"] = p.Avatar,
+        ["lang"] = p.Lang,
+        ["value"] = p.Value,
+        ["sla"] = p.Sla,
+        ["customData"] = p.CustomData
+    };
+
+    /// <summary>POST /sessions/identify. Returns the (possibly upgraded) session ids.</summary>
+    public async Task<SessionResult> IdentifyAsync(
+        string userId, GleapUserProperty data, string? userHash,
+        string? gleapId, string? gleapHash, CancellationToken ct)
+    {
+        var payload = ToDict(data);
+        payload["userId"] = userId;
+        if (!string.IsNullOrEmpty(userHash))
+        {
+            payload["userHash"] = userHash;
+        }
+
+        var res = await _http.SendAsync("POST", _endpoints.ApiUrl + "/sessions/identify",
+            _json.Serialize(payload), BaseHeaders(gleapId, gleapHash), ct).ConfigureAwait(false);
+
+        if (!res.IsSuccess)
+        {
+            throw new GleapApiException(res.StatusCode, $"Identify failed with status {res.StatusCode}");
+        }
+
+        using var doc = JsonDocument.Parse(res.Body);
+        var root = doc.RootElement;
+        return new SessionResult
+        {
+            GleapId = root.TryGetProperty("gleapId", out var i) ? i.GetString() ?? "" : "",
+            GleapHash = root.TryGetProperty("gleapHash", out var h) ? h.GetString() ?? "" : ""
+        };
+    }
+
+    /// <summary>POST /sessions/partialupdate.</summary>
+    public async Task UpdateContactAsync(
+        GleapUserProperty data, string? gleapId, string? gleapHash, CancellationToken ct)
+    {
+        var body = _json.Serialize(new Dictionary<string, object?>
+        {
+            ["data"] = ToDict(data),
+            ["type"] = "windows",
+            ["sdkVersion"] = "0.1.0"
+        });
+        var res = await _http.SendAsync("POST", _endpoints.ApiUrl + "/sessions/partialupdate",
+            body, BaseHeaders(gleapId, gleapHash), ct).ConfigureAwait(false);
+        if (!res.IsSuccess)
+        {
+            throw new GleapApiException(res.StatusCode, $"Update contact failed with status {res.StatusCode}");
+        }
     }
 }
