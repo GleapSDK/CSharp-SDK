@@ -1,4 +1,4 @@
-using GleapSDK.Capture;
+﻿using GleapSDK.Capture;
 
 namespace Gleap.Core.Tests.Fakes;
 

@@ -1,4 +1,4 @@
-using GleapSDK.Feedback;
+﻿using GleapSDK.Feedback;
 
 namespace Gleap.Core.Tests;
 
