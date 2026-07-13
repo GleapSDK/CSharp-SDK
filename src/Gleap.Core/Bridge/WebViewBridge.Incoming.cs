@@ -15,6 +15,8 @@ public sealed partial class WebViewBridge
     public event Action<JsonElement>? SendFeedbackRequested;
     /// <summary>Raised on "collect-ticket-data" — the widget is asking for the current report data.</summary>
     public event System.Action? CollectTicketDataRequested;
+    /// <summary>Raised on "tool-execution" — the widget is invoking an agent tool.</summary>
+    public event Action<JsonElement>? ToolExecutionRequested;
 
     partial void OnMessageReceived(string json)
     {
@@ -65,12 +67,15 @@ public sealed partial class WebViewBridge
                 CollectTicketDataRequested?.Invoke();
                 break;
 
+            case "tool-execution":
+                ToolExecutionRequested?.Invoke(msg.Data);
+                break;
+
             case "send-feedback":
                 SendFeedbackRequested?.Invoke(msg.Data);
                 break;
 
-                // tool-execution, frontend-tool-execute,
-                // cleanup-drawings, screenshot-updated -> handled in SP-0 Part 2.
+                // frontend-tool-execute, cleanup-drawings, screenshot-updated -> handled in SP-0 Part 2.
         }
     }
 }
