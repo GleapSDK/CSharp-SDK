@@ -1,5 +1,4 @@
-using GleapSDK.Metadata;
-using Xunit;
+﻿using GleapSDK.Metadata;
 
 namespace Gleap.Core.Tests;
 

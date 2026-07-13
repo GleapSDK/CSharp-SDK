@@ -1,8 +1,6 @@
-using System.Linq;
-using Gleap.Core.Tests.Fakes;
+﻿using Gleap.Core.Tests.Fakes;
 using GleapSDK;
 using GleapSDK.Collection;
-using Xunit;
 
 namespace Gleap.Core.Tests;
 

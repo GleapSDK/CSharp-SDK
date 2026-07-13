@@ -1,8 +1,5 @@
-using System.Collections.Generic;
-using System.Linq;
-using GleapSDK.Collection;
+﻿using GleapSDK.Collection;
 using GleapSDK.Models;
-using Xunit;
 
 namespace Gleap.Core.Tests;
 
@@ -10,7 +7,10 @@ public class NetworkLogBufferTests
 {
     private static GleapNetworkLog Log(string url) => new()
     {
-        Type = "GET", Url = url, Date = "d", Success = true,
+        Type = "GET",
+        Url = url,
+        Date = "d",
+        Success = true,
         Request = new GleapNetworkRequest { Headers = new Dictionary<string, object> { ["Authorization"] = "secret", ["Accept"] = "json" } },
         Response = new GleapNetworkResponse { Status = 200 }
     };

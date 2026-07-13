@@ -1,4 +1,4 @@
-namespace GleapSDK.Models;
+﻿namespace GleapSDK.Models;
 
 /// <summary>Response half of a <see cref="GleapNetworkLog"/>.</summary>
 public sealed class GleapNetworkResponse

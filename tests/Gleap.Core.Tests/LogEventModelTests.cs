@@ -1,6 +1,5 @@
-using GleapSDK.Models;
+﻿using GleapSDK.Models;
 using GleapSDK.Serialization;
-using Xunit;
 
 namespace Gleap.Core.Tests;
 

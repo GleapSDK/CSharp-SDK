@@ -1,4 +1,4 @@
-namespace GleapSDK.Models;
+﻿namespace GleapSDK.Models;
 
 /// <summary>One captured HTTP exchange, as sent in <c>networkLogs</c>.</summary>
 public sealed class GleapNetworkLog

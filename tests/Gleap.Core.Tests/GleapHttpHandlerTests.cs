@@ -1,11 +1,7 @@
-using System.Net;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Net;
 using Gleap.Core.Tests.Fakes;
 using GleapSDK.Collection;
 using GleapSDK.Http;
-using Xunit;
 
 namespace Gleap.Core.Tests;
 

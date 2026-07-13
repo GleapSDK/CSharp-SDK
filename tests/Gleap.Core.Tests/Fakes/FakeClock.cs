@@ -1,5 +1,4 @@
-using System;
-using GleapSDK.Time;
+﻿using GleapSDK.Time;
 
 namespace Gleap.Core.Tests.Fakes;
 

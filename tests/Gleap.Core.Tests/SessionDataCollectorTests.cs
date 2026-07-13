@@ -1,11 +1,9 @@
-using System.Collections.Generic;
-using Gleap.Core.Tests.Fakes;
+﻿using Gleap.Core.Tests.Fakes;
 using GleapSDK;
 using GleapSDK.Collection;
 using GleapSDK.Data;
 using GleapSDK.Metadata;
 using GleapSDK.Serialization;
-using Xunit;
 
 namespace Gleap.Core.Tests;
 

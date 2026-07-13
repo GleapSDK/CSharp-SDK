@@ -1,4 +1,4 @@
-namespace GleapSDK.Models;
+﻿namespace GleapSDK.Models;
 
 /// <summary>A tracked event, as sent in <c>customEventLog</c>.</summary>
 public sealed class GleapEvent

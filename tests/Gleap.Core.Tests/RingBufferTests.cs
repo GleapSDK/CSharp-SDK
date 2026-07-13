@@ -1,6 +1,4 @@
-using System.Linq;
-using GleapSDK.Collection;
-using Xunit;
+﻿using GleapSDK.Collection;
 
 namespace Gleap.Core.Tests;
 
