@@ -35,7 +35,9 @@ namespace GleapSDK.Unity
                 Store = new UnityKeyValueStore(),
                 Channel = channel,
                 Endpoints = GleapEndpoints.Default,
-                Metadata = new UnityMetadataProvider(SdkVersion)
+                Metadata = new UnityMetadataProvider(SdkVersion),
+                Platform = "unity",
+                SdkVersion = SdkVersion
             });
 
             Gleap.UseBackend(backend);
