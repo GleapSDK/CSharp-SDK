@@ -23,6 +23,11 @@ namespace GleapSDK.Unity
         public static async Task<ManagedBackend> AttachAsync(
             IWebViewChannel channel, string sdkKey, IJsonSerializer? json = null)
         {
+            // Must run on the Unity main thread: creates the pump that marshals PlayerPrefs writes back
+            // from Core's off-thread (ConfigureAwait(false)) continuations. Also fixes the metadata
+            // snapshot below to this thread.
+            GleapUnityMainThread.Ensure();
+
             var backend = new ManagedBackend(new ManagedBackend.Dependencies
             {
                 Http = new HttpTransport(),

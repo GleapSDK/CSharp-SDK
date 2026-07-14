@@ -7,6 +7,12 @@ namespace GleapSDK.Unity
     /// <see cref="IKeyValueStore"/> backed by Unity <see cref="PlayerPrefs"/> so the gleapId/gleapHash
     /// survive across sessions on every Unity platform (incl. WebGL/consoles).
     /// </summary>
+    /// <remarks>
+    /// Reads happen on the session-start synchronous prefix (main thread), so <see cref="Get"/> is a plain
+    /// call. Writes happen in post-network continuations that Core runs off-thread
+    /// (<c>ConfigureAwait(false)</c>), and <c>PlayerPrefs</c> is main-thread-only, so <see cref="Set"/> and
+    /// <see cref="Remove"/> are marshalled through <see cref="GleapUnityMainThread"/>.
+    /// </remarks>
     public sealed class UnityKeyValueStore : IKeyValueStore
     {
         private const string Prefix = "gleap_";
@@ -19,14 +25,22 @@ namespace GleapSDK.Unity
 
         public void Set(string key, string value)
         {
-            PlayerPrefs.SetString(Prefix + key, value);
-            PlayerPrefs.Save();
+            var k = Prefix + key;
+            GleapUnityMainThread.Run(() =>
+            {
+                PlayerPrefs.SetString(k, value);
+                PlayerPrefs.Save();
+            });
         }
 
         public void Remove(string key)
         {
-            PlayerPrefs.DeleteKey(Prefix + key);
-            PlayerPrefs.Save();
+            var k = Prefix + key;
+            GleapUnityMainThread.Run(() =>
+            {
+                PlayerPrefs.DeleteKey(k);
+                PlayerPrefs.Save();
+            });
         }
     }
 }
