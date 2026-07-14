@@ -11,7 +11,7 @@ public class NetworkLogBufferTests
         Url = url,
         Date = "d",
         Success = true,
-        Request = new GleapNetworkRequest { Headers = new Dictionary<string, object> { ["Authorization"] = "secret", ["Accept"] = "json" } },
+        Request = new GleapNetworkRequest { Headers = new Dictionary<string, string> { ["Authorization"] = "secret", ["Accept"] = "json" } },
         Response = new GleapNetworkResponse { Status = 200 }
     };
 
@@ -36,7 +36,7 @@ public class NetworkLogBufferTests
 
         buffer.Add(Log("https://api.example.com/x"));
 
-        var headers = (Dictionary<string, object>)buffer.Snapshot()[0].Request.Headers!;
+        var headers = (Dictionary<string, string>)buffer.Snapshot()[0].Request.Headers!;
         Assert.False(headers.ContainsKey("Authorization"));
         Assert.True(headers.ContainsKey("Accept"));
     }

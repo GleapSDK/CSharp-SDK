@@ -37,11 +37,11 @@ public sealed class NetworkLogBuffer
             }
         }
 
-        Strip(log.Request.Headers as IDictionary<string, object>);
+        Strip(log.Request.Headers as IDictionary<string, string>);
         _buffer.Add(log);
     }
 
-    private void Strip(IDictionary<string, object>? headers)
+    private void Strip(IDictionary<string, string>? headers)
     {
         if (headers is null)
         {

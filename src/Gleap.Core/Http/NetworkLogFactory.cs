@@ -27,7 +27,7 @@ public static class NetworkLogFactory
             Request = new GleapNetworkRequest
             {
                 Payload = Guard(requestPayload, "<payload_too_large>"),
-                Headers = requestHeaders
+                Headers = CopyHeaders(requestHeaders)
             },
             Response = new GleapNetworkResponse
             {
@@ -45,5 +45,25 @@ public static class NetworkLogFactory
             return null;
         }
         return body.Length > MaxBodyLength ? sentinel : body;
+    }
+
+    /// <summary>
+    /// Copies the caller's header map into a concrete <see cref="Dictionary{TKey, TValue}"/> so
+    /// <see cref="Collection.NetworkLogBuffer"/> can mutate it in place (header redaction) without
+    /// touching the caller's own dictionary, and so the stored value's runtime type is exactly
+    /// <c>Dictionary&lt;string, string&gt;</c> — the shape the redaction cast expects.
+    /// </summary>
+    private static Dictionary<string, string>? CopyHeaders(IReadOnlyDictionary<string, string>? requestHeaders)
+    {
+        if (requestHeaders is null)
+        {
+            return null;
+        }
+        var copy = new Dictionary<string, string>();
+        foreach (var kv in requestHeaders)
+        {
+            copy[kv.Key] = kv.Value;
+        }
+        return copy;
     }
 }
