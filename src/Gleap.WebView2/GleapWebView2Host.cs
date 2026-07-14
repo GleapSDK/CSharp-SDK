@@ -46,7 +46,7 @@ public static class GleapWebView2Host
         return backend;
     }
 
-    private static void OpenExternalUrl(string? url)
+    internal static void OpenExternalUrl(string? url)
     {
         if (string.IsNullOrEmpty(url)
             || !(url!.StartsWith("http://", StringComparison.OrdinalIgnoreCase)

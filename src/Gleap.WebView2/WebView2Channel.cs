@@ -17,19 +17,22 @@ namespace GleapSDK.WebView2;
 /// </summary>
 public sealed class WebView2Channel : IWebViewChannel
 {
-    // Installed before the page loads (AddScriptToExecuteOnDocumentCreatedAsync). appnew.html calls
-    // GleapJSBridge.gleapCallback(jsonString); we forward that to the C# WebMessageReceived handler.
-    private const string BridgeShim =
-        "window.GleapJSBridge = { gleapCallback: function (s) { window.chrome.webview.postMessage(s); } };";
+    // Installed before the page loads (AddScriptToExecuteOnDocumentCreatedAsync). The page calls
+    // <bridgeObject>.<callbackName>(jsonString); we forward that to the C# WebMessageReceived handler.
+    // Messenger uses GleapJSBridge/gleapCallback; outbound banner/modal use
+    // GleapBannerJSBridge/gleapBannerCallback and GleapModalJSBridge/gleapModalCallback.
+    private readonly string _bridgeShim;
 
     private readonly IWebView2 _webView;
     private readonly Dispatcher _dispatcher;
     private CoreWebView2? _core;
 
-    public WebView2Channel(IWebView2 webView)
+    public WebView2Channel(IWebView2 webView, string bridgeObject = "GleapJSBridge", string callbackName = "gleapCallback")
     {
         _webView = webView;
         _dispatcher = ((DispatcherObject)webView).Dispatcher;
+        _bridgeShim = "window." + bridgeObject + " = { " + callbackName
+            + ": function (s) { window.chrome.webview.postMessage(s); } };";
     }
 
     /// <inheritdoc />
@@ -41,7 +44,7 @@ public sealed class WebView2Channel : IWebViewChannel
     {
         await _webView.EnsureCoreWebView2Async(null).ConfigureAwait(true);
         _core = _webView.CoreWebView2;
-        await _core.AddScriptToExecuteOnDocumentCreatedAsync(BridgeShim).ConfigureAwait(true);
+        await _core.AddScriptToExecuteOnDocumentCreatedAsync(_bridgeShim).ConfigureAwait(true);
         _core.WebMessageReceived += OnWebMessageReceived;
     }
 

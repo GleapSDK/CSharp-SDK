@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -55,6 +56,9 @@ public class GleapMessenger : Grid, IDisposable
     private bool _isOpen;
     private bool _disposed;
     private double? _contentHeight;
+    private GleapSDK.Http.GleapEndpoints _endpoints = GleapSDK.Http.GleapEndpoints.Default;
+    private GleapOutboundSurface? _banner;
+    private GleapOutboundSurface? _modal;
 
     /// <summary>Project SDK key. Set before the control loads (e.g. in the host's constructor).</summary>
     public string? SdkKey { get; set; }
@@ -314,6 +318,7 @@ public class GleapMessenger : Grid, IDisposable
         _initializing = true;
         try
         {
+            _endpoints = endpoints ?? GleapSDK.Http.GleapEndpoints.Default;
             // Composition rendering + Opacity 0 keeps the preload invisible (no flash).
             _backend = await GleapWebView2Host.AttachAsync(_webView, SdkKey!, endpoints).ConfigureAwait(true);
             ApplyLauncherStyle();
@@ -321,6 +326,7 @@ public class GleapMessenger : Grid, IDisposable
             Gleap.RegisterListener("widgetClosed", _ => OnUi(HideMessenger));
             Gleap.RegisterListener("notificationCountUpdated", count => OnUi(() => UpdateBadge(count)));
             Gleap.RegisterListener("widgetHeightChanged", h => OnUi(() => OnWidgetHeight(h)));
+            Gleap.RegisterListener("outboundSent", d => OnUi(() => OnOutbound(d)));
 
             if (EnableOutboundPolling)
             {
@@ -407,6 +413,30 @@ public class GleapMessenger : Grid, IDisposable
         _overlay.Height = h;
         _webView.Height = h;
         _webView.Clip = new RectangleGeometry(new Rect(0, 0, PanelWidth, h), CornerRadius, CornerRadius);
+    }
+
+    /// <summary>Renders an outbound banner/modal (matching the native SDKs) when the poll surfaces one.
+    /// Skipped while the messenger is open, mirroring the native dispatch guard.</summary>
+    private void OnOutbound(object? payload)
+    {
+        if (_disposed || _isOpen || _backend == null || payload is not IReadOnlyDictionary<string, object?> dict)
+        {
+            return;
+        }
+        var actionType = dict.TryGetValue("actionType", out var at) ? at as string : null;
+        var dataJson = (dict.TryGetValue("data", out var dj) ? dj as string : null) ?? "{}";
+        var flowConfig = _backend.FlowConfigJson;
+
+        if (actionType == "banner")
+        {
+            _banner?.Close();
+            _banner = new GleapOutboundSurface(this, isModal: false, dataJson, flowConfig, _endpoints, () => _banner = null, ShowMessenger);
+        }
+        else if (actionType == "modal")
+        {
+            _modal?.Close();
+            _modal = new GleapOutboundSurface(this, isModal: true, dataJson, flowConfig, _endpoints, () => _modal = null, ShowMessenger);
+        }
     }
 
     /// <summary>Recolours the launcher to the project's configured <c>buttonColor</c> so it matches the
@@ -504,6 +534,8 @@ public class GleapMessenger : Grid, IDisposable
         {
             _pollTimer?.Stop();
             _pollTimer = null;
+            _banner?.Dispose();
+            _modal?.Dispose();
             _webView.Dispose();
         }
         _disposed = true;
