@@ -62,6 +62,23 @@ public class ManagedBackendOutboundTests
     }
 
     [Fact]
+    public async Task Poll_OutboundSent_IncludesRawActionData()
+    {
+        var (backend, ch, http) = await NewInitializedAsync();
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+        object? received = null;
+        backend.RegisterListener("outboundSent", data => received = data);
+        http.Responses.Enqueue(new HttpResult(200,
+            "{\"a\":[{\"actionType\":\"banner\",\"outbound\":\"ob1\",\"bannerColor\":\"#123456\"}],\"u\":0}"));
+
+        await backend.PollOutboundOnceAsync(CancellationToken.None);
+
+        var json = JsonSerializer.Serialize(received);
+        Assert.Contains("bannerColor", json);
+        Assert.Contains("#123456", json);
+    }
+
+    [Fact]
     public async Task Poll_AutoStartsSurvey()
     {
         var (backend, ch, http) = await NewInitializedAsync();

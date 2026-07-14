@@ -311,7 +311,9 @@ public sealed class ManagedBackend : IGleapBackend
             _events.Emit("outboundSent", new Dictionary<string, object?>
             {
                 ["actionType"] = action.ActionType,
-                ["outboundId"] = action.OutboundId
+                ["outboundId"] = action.OutboundId,
+                // Raw action JSON so the platform host can answer banner-data / modal-data.
+                ["data"] = action.Data.ValueKind == JsonValueKind.Undefined ? null : action.Data.GetRawText()
             });
 
             if (action.ActionType == "survey")
