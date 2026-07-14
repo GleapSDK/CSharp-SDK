@@ -21,6 +21,8 @@ public sealed partial class WebViewBridge
     public event Action<double>? HeightUpdated;
     /// <summary>Raised on "screenshot-updated" — the user-edited screenshot data-URI from the widget's editor.</summary>
     public event Action<string>? ScreenshotUpdated;
+    /// <summary>Raised on "cleanup-drawings" — the user discarded their screenshot annotations.</summary>
+    public event Action? DrawingsCleanedUp;
 
     partial void OnMessageReceived(string json)
     {
@@ -97,6 +99,10 @@ public sealed partial class WebViewBridge
                 {
                     ScreenshotUpdated?.Invoke(msg.Data.GetString()!);
                 }
+                break;
+
+            case "cleanup-drawings":
+                DrawingsCleanedUp?.Invoke();
                 break;
 
                 // frontend-tool-execute, cleanup-drawings, screenshot-updated -> handled in SP-0 Part 2.

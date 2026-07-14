@@ -102,6 +102,7 @@ public sealed class ManagedBackend : IGleapBackend
         _bridge.HeightUpdated += height => _events.Emit("widgetHeightChanged", height);
         _bridge.OpenUrlRequested += url => _events.Emit("openURL", url);
         _bridge.ScreenshotUpdated += shot => _editedScreenshot = shot;
+        _bridge.DrawingsCleanedUp += () => _editedScreenshot = null;   // revert to the original capture (iOS behavior)
         _bridge.FeedbackFlowStarted += _ => _events.Emit("feedbackFlowStarted");
         _bridge.CustomActionTriggered += (name, token) =>
             _events.Emit("customActionTriggered", new Dictionary<string, object?> { ["name"] = name, ["shareToken"] = token });

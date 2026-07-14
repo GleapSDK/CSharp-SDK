@@ -64,6 +64,26 @@ public class ManagedBackendCaptureTests
     }
 
     [Fact]
+    public async Task CleanupDrawings_RevertsToOriginalScreenshot()
+    {
+        var (backend, ch, http) = NewInitialized(new ManagedBackend.Dependencies
+        {
+            Screenshot = new FakeScreenshotProvider("data:image/png;base64,FRESH")
+        });
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+        http.Responses.Enqueue(new HttpResult(200, "{\"shareToken\":\"st1\"}"));
+
+        ch.SimulateIncoming("{\"name\":\"screenshot-updated\",\"data\":\"data:image/png;base64,EDITED\"}");
+        ch.SimulateIncoming("{\"name\":\"cleanup-drawings\"}");   // user discards annotations
+        ch.SimulateIncoming("{\"name\":\"send-feedback\",\"data\":{\"formData\":{},\"action\":{\"feedbackType\":\"BUG\"}}}");
+        await backend.LastFeedbackTask!;
+
+        var bugCall = Assert.Single(http.Calls, c => c.Url == "https://api.gleap.io/bugs/v2");
+        Assert.Contains("FRESH", bugCall.Body);
+        Assert.DoesNotContain("EDITED", bugCall.Body);
+    }
+
+    [Fact]
     public async Task PrepareScreenshot_SendsScreenshotUpdateToWidget()
     {
         var (backend, ch, _) = NewInitialized(new ManagedBackend.Dependencies
