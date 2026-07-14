@@ -15,13 +15,19 @@ public sealed class ApiClient
     private readonly IJsonSerializer _json;
     private readonly GleapEndpoints _endpoints;
     private readonly string _sdkKey;
+    private readonly string _platform;
+    private readonly string _sdkVersion;
 
-    public ApiClient(IHttpTransport http, IJsonSerializer json, GleapEndpoints endpoints, string sdkKey)
+    public ApiClient(
+        IHttpTransport http, IJsonSerializer json, GleapEndpoints endpoints, string sdkKey,
+        string platform = "windows", string sdkVersion = "0.1.0")
     {
         _http = http;
         _json = json;
         _endpoints = endpoints;
         _sdkKey = sdkKey;
+        _platform = platform;
+        _sdkVersion = sdkVersion;
     }
 
     private Dictionary<string, string> BaseHeaders(string? gleapId, string? gleapHash)
@@ -46,7 +52,7 @@ public sealed class ApiClient
         var body = _json.Serialize(new Dictionary<string, object>
         {
             ["lang"] = lang,
-            ["platform"] = "windows",   // TODO SP-0 Part 2: platform per runtime (see spec §8)
+            ["platform"] = _platform,
             ["deviceType"] = deviceType
         });
         var res = await _http.SendAsync("POST", _endpoints.ApiUrl + "/sessions", body,
@@ -145,8 +151,8 @@ public sealed class ApiClient
         var body = _json.Serialize(new Dictionary<string, object?>
         {
             ["data"] = ToDict(data),
-            ["type"] = "windows",
-            ["sdkVersion"] = "0.1.0"
+            ["type"] = _platform,
+            ["sdkVersion"] = _sdkVersion
         });
         var res = await _http.SendAsync("POST", _endpoints.ApiUrl + "/sessions/partialupdate",
             body, BaseHeaders(gleapId, gleapHash), ct).ConfigureAwait(false);
@@ -238,8 +244,8 @@ public sealed class ApiClient
             ["events"] = events,
             ["opened"] = opened,
             ["ws"] = false,
-            ["type"] = "windows",
-            ["sdkVersion"] = "0.1.0"
+            ["type"] = _platform,
+            ["sdkVersion"] = _sdkVersion
         });
         var res = await _http.SendAsync("POST", _endpoints.ApiUrl + "/sessions/ping",
             body, BaseHeaders(gleapId, gleapHash), ct).ConfigureAwait(false);

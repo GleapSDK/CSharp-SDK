@@ -29,6 +29,18 @@ public sealed class ManagedBackend : IGleapBackend
         public GleapEndpoints Endpoints { get; set; } = GleapEndpoints.Default;
         public IMetadataProvider Metadata { get; set; } = new DefaultMetadataProvider("NET", "0.1.0");
         public IScreenshotProvider? Screenshot { get; set; }
+
+        /// <summary>Runtime identifier reported to the API as <c>platform</c>/<c>type</c> (e.g.
+        /// <c>"windows"</c>, <c>"unity"</c>, <c>"android"</c>, <c>"ios"</c>). Platform hosts override
+        /// this; the managed default is desktop/Windows.</summary>
+        public string Platform { get; set; } = "windows";
+
+        /// <summary>Device class reported to the API on session start (e.g. <c>"desktop"</c>,
+        /// <c>"mobile"</c>). Platform hosts override this.</summary>
+        public string DeviceType { get; set; } = "desktop";
+
+        /// <summary>SDK version reported to the API on ping/contact updates.</summary>
+        public string SdkVersion { get; set; } = "0.1.0";
     }
 
     private readonly Dependencies _d;
@@ -82,7 +94,7 @@ public sealed class ManagedBackend : IGleapBackend
     public async Task InitializeAsync(string token, CancellationToken ct)
     {
         _token = token;
-        _api = new ApiClient(_d.Http, _d.Json, _d.Endpoints, token);
+        _api = new ApiClient(_d.Http, _d.Json, _d.Endpoints, token, _d.Platform, _d.SdkVersion);
         _session = new SessionManager(_api, _d.Store);
         _config = new ConfigManager(_api);
 
@@ -109,7 +121,7 @@ public sealed class ManagedBackend : IGleapBackend
             _events.Emit("customActionTriggered", new Dictionary<string, object?> { ["name"] = name, ["shareToken"] = token });
         _bridge.ToolExecutionRequested += _ => _events.Emit("toolExecution");
 
-        await _session.StartAsync(_language, "desktop", ct).ConfigureAwait(false);
+        await _session.StartAsync(_language, _d.DeviceType, ct).ConfigureAwait(false);
         await _config.LoadAsync(_language, ct).ConfigureAwait(false);
         _events.Emit("initialized");
     }
@@ -640,7 +652,7 @@ public sealed class ManagedBackend : IGleapBackend
     public async Task ClearIdentityAsync(CancellationToken ct)
     {
         _session.ClearIdentity();
-        await _session.StartAsync("en", "desktop", ct).ConfigureAwait(false);
+        await _session.StartAsync(_language, _d.DeviceType, ct).ConfigureAwait(false);
         _bootstrapper.SendSessionUpdate();
     }
 
