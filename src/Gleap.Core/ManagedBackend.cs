@@ -575,6 +575,9 @@ public sealed class ManagedBackend : IGleapBackend
         var time = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var response = await _api.PingAsync(time, events, _widgetOpen, _session.GleapId, _session.GleapHash, ct)
             .ConfigureAwait(false);
+        // Only clear once the ping actually succeeded (an exception above leaves events
+        // buffered so the next cycle retries them instead of losing them silently).
+        _eventLog.Clear();
 
         _events.Emit("notificationCountUpdated", response.UnreadCount);
 

@@ -90,4 +90,23 @@ public class ManagedBackendOutboundTests
 
         Assert.Contains(ch.ExecutedScripts, s => s.Contains("start-survey"));
     }
+
+    [Fact]
+    public async Task Poll_FlushesEvents_NotResentNextCycle()
+    {
+        var (backend, ch, http) = await NewInitializedAsync();
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+        backend.TrackEvent("e1", null);
+        http.Responses.Enqueue(new HttpResult(200, "{}"));
+        http.Responses.Enqueue(new HttpResult(200, "{}"));
+
+        await backend.PollOutboundOnceAsync(CancellationToken.None);
+        var firstPingBody = http.Calls[^1].Body;
+
+        await backend.PollOutboundOnceAsync(CancellationToken.None);
+        var secondPingBody = http.Calls[^1].Body;
+
+        Assert.Contains("e1", firstPingBody);
+        Assert.DoesNotContain("e1", secondPingBody);
+    }
 }
