@@ -547,6 +547,13 @@ public sealed class ManagedBackend : IGleapBackend
         UserId = _session.Identity?.UserId,
         Name = _session.Identity?.Name,
         Email = _session.Identity?.Email,
+        Phone = _session.Identity?.Phone,
+        Plan = _session.Identity?.Plan,
+        CompanyName = _session.Identity?.CompanyName,
+        CompanyId = _session.Identity?.CompanyId,
+        Avatar = _session.Identity?.Avatar,
+        Value = _session.Identity?.Value,
+        Sla = _session.Identity?.Sla,
         PreFillFormData = _prefill,
         AiTools = _aiTools
     };

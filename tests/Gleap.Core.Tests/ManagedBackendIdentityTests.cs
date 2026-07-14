@@ -43,4 +43,33 @@ public class ManagedBackendIdentityTests
         Assert.True(backend.IsUserIdentified());
         Assert.Equal("a@b.c", backend.GetIdentity()!.Email);
     }
+
+    [Fact]
+    public async Task IdentifyContact_SessionUpdate_CarriesAllUserFields()
+    {
+        var (backend, ch, http) = NewInitialized();
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+        http.Responses.Enqueue(new HttpResult(200, "{\"gleapId\":\"g2\",\"gleapHash\":\"h2\"}"));
+
+        await backend.IdentifyContactAsync("u1", new GleapUserProperty
+        {
+            Email = "a@b.c",
+            Phone = "123",
+            Plan = "pro",
+            CompanyName = "Acme",
+            CompanyId = "c1",
+            Avatar = "https://a",
+            Value = 42.0,
+            Sla = 3.0
+        }, null, CancellationToken.None);
+
+        var sessionUpdate = ch.ExecutedScripts.Last(s => s.Contains("session-update"));
+        Assert.Contains("\"phone\":\"123\"", sessionUpdate);
+        Assert.Contains("\"plan\":\"pro\"", sessionUpdate);
+        Assert.Contains("\"companyName\":\"Acme\"", sessionUpdate);
+        Assert.Contains("\"companyId\":\"c1\"", sessionUpdate);
+        Assert.Contains("\"avatar\":\"https://a\"", sessionUpdate);
+        Assert.Contains("\"value\":42", sessionUpdate);
+        Assert.Contains("\"sla\":3", sessionUpdate);
+    }
 }

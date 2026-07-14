@@ -15,6 +15,13 @@ public sealed class SessionSnapshot
     public string? UserId { get; set; }
     public string? Name { get; set; }
     public string? Email { get; set; }
+    public string? Phone { get; set; }
+    public string? Plan { get; set; }
+    public string? CompanyName { get; set; }
+    public string? CompanyId { get; set; }
+    public string? Avatar { get; set; }
+    public double? Value { get; set; }
+    public double? Sla { get; set; }
 
     public IReadOnlyDictionary<string, object?>? PreFillFormData { get; set; }
 

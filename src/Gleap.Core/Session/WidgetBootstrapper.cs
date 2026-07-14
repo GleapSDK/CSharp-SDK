@@ -64,7 +64,14 @@ public sealed class WidgetBootstrapper
                     ["gleapHash"] = s.GleapHash,
                     ["userId"] = s.UserId,
                     ["name"] = s.Name,
-                    ["email"] = s.Email
+                    ["email"] = s.Email,
+                    ["phone"] = s.Phone,
+                    ["plan"] = s.Plan,
+                    ["companyName"] = s.CompanyName,
+                    ["companyId"] = s.CompanyId,
+                    ["avatar"] = s.Avatar,
+                    ["value"] = s.Value,
+                    ["sla"] = s.Sla
                 },
                 ["apiUrl"] = s.ApiUrl,
                 ["sdkKey"] = s.SdkKey
