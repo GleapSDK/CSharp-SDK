@@ -80,6 +80,21 @@ public class WebViewBridgeIncomingTests
     }
 
     [Fact]
+    public void NotifyEvent_NonStringType_DoesNotThrow()
+    {
+        var ch = new FakeWebViewChannel();
+        var bridge = NewBridge(ch);
+        var started = false;
+        bridge.FeedbackFlowStarted += _ => started = true;
+
+        var ex = Record.Exception(() =>
+            ch.SimulateIncoming("{\"name\":\"notify-event\",\"data\":{\"type\":123}}"));
+
+        Assert.Null(ex);
+        Assert.False(started);
+    }
+
+    [Fact]
     public void HeightUpdate_RaisesHeightUpdatedWithPixels()
     {
         var ch = new FakeWebViewChannel();

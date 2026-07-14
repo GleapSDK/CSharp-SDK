@@ -62,6 +62,7 @@ public sealed partial class WebViewBridge
             case "notify-event":
                 if (msg.Data.ValueKind == JsonValueKind.Object &&
                     msg.Data.TryGetProperty("type", out var type) &&
+                    type.ValueKind == JsonValueKind.String &&
                     type.GetString() == "flow-started")
                 {
                     var payload = msg.Data.TryGetProperty("data", out var d) ? d : default;
