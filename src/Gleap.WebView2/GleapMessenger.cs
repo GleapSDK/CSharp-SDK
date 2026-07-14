@@ -55,7 +55,6 @@ public class GleapMessenger : Grid, IDisposable
     private bool _initializing;
     private bool _isOpen;
     private bool _disposed;
-    private double? _contentHeight;
     private GleapSDK.Http.GleapEndpoints _endpoints = GleapSDK.Http.GleapEndpoints.Default;
     private GleapOutboundSurface? _banner;
     private GleapOutboundSurface? _modal;
@@ -325,7 +324,6 @@ public class GleapMessenger : Grid, IDisposable
 
             Gleap.RegisterListener("widgetClosed", _ => OnUi(HideMessenger));
             Gleap.RegisterListener("notificationCountUpdated", count => OnUi(() => UpdateBadge(count)));
-            Gleap.RegisterListener("widgetHeightChanged", h => OnUi(() => OnWidgetHeight(h)));
             Gleap.RegisterListener("outboundSent", d => OnUi(() => OnOutbound(d)));
 
             if (EnableOutboundPolling)
@@ -383,29 +381,15 @@ public class GleapMessenger : Grid, IDisposable
         _pollTimer.Start();
     }
 
-    private void OnWidgetHeight(object? value)
-    {
-        var h = value switch
-        {
-            double d => d,
-            int i => i,
-            long l => l,
-            _ => double.TryParse(value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var p) ? p : 0
-        };
-        if (h > 0)
-        {
-            _contentHeight = h;
-            ResizePanel();
-        }
-    }
-
-    /// <summary>Sizes the panel to the widget's content height, clamped to <see cref="PanelHeight"/> and to
-    /// the available vertical space, so it shrinks to fit when the window is short (web-parity behaviour).</summary>
+    /// <summary>Keeps the messenger at its fixed <see cref="PanelHeight"/> (it scrolls internally, like the
+    /// web/native messenger), only shrinking when the window itself is too short to fit it. The widget's
+    /// per-screen content height is deliberately NOT used here — that would collapse screens like the bug
+    /// form whose initial content is short; content-height sizing is a survey/banner concern, not the
+    /// main messenger's.</summary>
     private void ResizePanel()
     {
         double available = ActualHeight > 0 ? ActualHeight - 84 /*launcher zone*/ - 24 /*top gap*/ : PanelHeight;
-        double target = _contentHeight is { } c ? Math.Min(c, PanelHeight) : PanelHeight;
-        double h = Math.Round(Math.Max(220, Math.Min(target, available)));
+        double h = Math.Round(Math.Max(220, Math.Min(PanelHeight, available)));
         if (h == _overlay.Height)
         {
             return;
