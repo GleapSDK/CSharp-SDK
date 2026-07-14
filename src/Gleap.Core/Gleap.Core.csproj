@@ -6,8 +6,27 @@
     <AssemblyName>Gleap.Core</AssemblyName>
   </PropertyGroup>
 
+  <!-- NuGet package metadata (proprietary license: use PackageLicenseFile, not an SPDX expression). -->
+  <PropertyGroup>
+    <PackageId>Gleap.Core</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Gleap GmbH</Authors>
+    <Company>Gleap GmbH</Company>
+    <Description>Gleap SDK core — the platform-agnostic .NET client (session, native bridge, feedback flow and API) shared by the Windows, MAUI and Unity Gleap integrations. Reference a platform package (Gleap.WebView2 / Gleap.Maui) rather than this directly.</Description>
+    <PackageProjectUrl>https://gleap.io</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/GleapSDK/CSharp-SDK</RepositoryUrl>
+    <PackageTags>gleap;feedback;bug-reporting;support;survey;customer-support</PackageTags>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="System.Text.Json" Version="10.0.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\LICENSE.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>

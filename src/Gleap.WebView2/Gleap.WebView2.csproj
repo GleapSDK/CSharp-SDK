@@ -9,6 +9,20 @@
     <AssemblyName>Gleap.WebView2</AssemblyName>
   </PropertyGroup>
 
+  <!-- NuGet package metadata (proprietary license: use PackageLicenseFile, not an SPDX expression). -->
+  <PropertyGroup>
+    <PackageId>Gleap.WebView2</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Gleap GmbH</Authors>
+    <Company>Gleap GmbH</Company>
+    <Description>Gleap SDK for Windows (WPF) — a drop-in WebView2 messenger control for in-app feedback, bug reporting, surveys, product tours and live chat, matching the Gleap web widget on the desktop.</Description>
+    <PackageProjectUrl>https://gleap.io</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/GleapSDK/CSharp-SDK</RepositoryUrl>
+    <PackageTags>gleap;feedback;bug-reporting;wpf;windows;webview2;survey;support;live-chat</PackageTags>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
   <ItemGroup>
     <!-- Version floats to latest 1.0.x; pin after the first successful Windows restore. -->
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.*" />
@@ -16,6 +30,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Gleap.Core\Gleap.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\LICENSE.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>
