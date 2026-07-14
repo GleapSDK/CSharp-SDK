@@ -83,6 +83,10 @@ public class GleapMessenger : Grid, IDisposable
     /// <summary>True while the messenger overlay is shown.</summary>
     public bool IsMessengerVisible => _isOpen;
 
+    /// <summary>Raised once the Gleap session is initialized and the <see cref="Gleap"/> facade is ready
+    /// (e.g. to <c>IdentifyContact</c> or <c>TrackEvent</c>). Fires on the UI thread.</summary>
+    public event EventHandler? Ready;
+
     public GleapMessenger()
     {
         _webView = new Microsoft.Web.WebView2.Wpf.WebView2CompositionControl
@@ -330,6 +334,8 @@ public class GleapMessenger : Grid, IDisposable
             {
                 StartPolling();
             }
+
+            Ready?.Invoke(this, EventArgs.Empty);
         }
         finally
         {
