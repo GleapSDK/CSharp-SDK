@@ -32,6 +32,7 @@ public static class GleapWebView2Host
             Store = new FileKeyValueStore(),
             Channel = channel,
             Endpoints = resolvedEndpoints,
+            Metadata = new WindowsMetadataProvider(SdkVersion),
             Screenshot = new WindowsScreenshotProvider()
         });
 
