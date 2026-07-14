@@ -265,6 +265,16 @@ public class GleapMessenger : Grid, IDisposable
             return;
         }
 
+        // Capture the app surface for the report flow while the overlay is still hidden.
+        try
+        {
+            await _backend.PrepareScreenshotAsync().ConfigureAwait(true);
+        }
+        catch
+        {
+            // Screenshot capture is best-effort; never block opening the messenger.
+        }
+
         _isOpen = true;
         _badge.Visibility = Visibility.Collapsed;
         _overlay.IsHitTestVisible = true;

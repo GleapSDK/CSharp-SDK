@@ -44,6 +44,40 @@ public class ManagedBackendCaptureTests
     }
 
     [Fact]
+    public async Task SendFeedback_PrefersEditedScreenshot_OverFreshCapture()
+    {
+        var (backend, ch, http) = NewInitialized(new ManagedBackend.Dependencies
+        {
+            Screenshot = new FakeScreenshotProvider("data:image/png;base64,FRESH")
+        });
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+        http.Responses.Enqueue(new HttpResult(200, "{\"shareToken\":\"st1\"}"));
+
+        // The widget's editor sends back the user-annotated screenshot.
+        ch.SimulateIncoming("{\"name\":\"screenshot-updated\",\"data\":\"data:image/png;base64,EDITED\"}");
+        ch.SimulateIncoming("{\"name\":\"send-feedback\",\"data\":{\"formData\":{},\"action\":{\"feedbackType\":\"BUG\"}}}");
+        await backend.LastFeedbackTask!;
+
+        var bugCall = Assert.Single(http.Calls, c => c.Url == "https://api.gleap.io/bugs/v2");
+        Assert.Contains("EDITED", bugCall.Body);
+        Assert.DoesNotContain("FRESH", bugCall.Body);
+    }
+
+    [Fact]
+    public async Task PrepareScreenshot_SendsScreenshotUpdateToWidget()
+    {
+        var (backend, ch, _) = NewInitialized(new ManagedBackend.Dependencies
+        {
+            Screenshot = new FakeScreenshotProvider("data:image/png;base64,SHOT")
+        });
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+
+        await backend.PrepareScreenshotAsync();
+
+        Assert.Contains(ch.ExecutedScripts, s => s.Contains("screenshot-update") && s.Contains("SHOT"));
+    }
+
+    [Fact]
     public async Task AddReplayFrame_IncludesReplay()
     {
         var (backend, ch, http) = NewInitialized();

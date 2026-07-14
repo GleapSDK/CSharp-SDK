@@ -19,6 +19,8 @@ public sealed partial class WebViewBridge
     public event Action<JsonElement>? ToolExecutionRequested;
     /// <summary>Raised on "height-update" — the widget's desired content height in pixels (for responsive sizing).</summary>
     public event Action<double>? HeightUpdated;
+    /// <summary>Raised on "screenshot-updated" — the user-edited screenshot data-URI from the widget's editor.</summary>
+    public event Action<string>? ScreenshotUpdated;
 
     partial void OnMessageReceived(string json)
     {
@@ -87,6 +89,13 @@ public sealed partial class WebViewBridge
                         System.Globalization.CultureInfo.InvariantCulture, out var parsed))
                 {
                     HeightUpdated?.Invoke(parsed);
+                }
+                break;
+
+            case "screenshot-updated":
+                if (msg.Data.ValueKind == JsonValueKind.String)
+                {
+                    ScreenshotUpdated?.Invoke(msg.Data.GetString()!);
                 }
                 break;
 

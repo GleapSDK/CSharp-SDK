@@ -49,6 +49,7 @@ public sealed class ManagedBackend : IGleapBackend
     private readonly SessionDataCollector _collector;
     private readonly GleapEventDispatcher _events = new();
     private bool _widgetOpen;
+    private string? _editedScreenshot;
     private string _language = "en";
     private bool _feedbackButtonVisible;
     private bool _inAppNotificationsDisabled;
@@ -100,6 +101,7 @@ public sealed class ManagedBackend : IGleapBackend
         _bridge.SendFeedbackRequested += data => { LastFeedbackTask = HandleSendFeedbackAsync(data); };
         _bridge.HeightUpdated += height => _events.Emit("widgetHeightChanged", height);
         _bridge.OpenUrlRequested += url => _events.Emit("openURL", url);
+        _bridge.ScreenshotUpdated += shot => _editedScreenshot = shot;
         _bridge.FeedbackFlowStarted += _ => _events.Emit("feedbackFlowStarted");
         _bridge.CustomActionTriggered += (name, token) =>
             _events.Emit("customActionTriggered", new Dictionary<string, object?> { ["name"] = name, ["shareToken"] = token });
@@ -121,15 +123,22 @@ public sealed class ManagedBackend : IGleapBackend
         try
         {
             string? screenshot = null;
-            if (_d.Screenshot != null && !excludeKeys.Contains("screenshot"))
+            if (!excludeKeys.Contains("screenshot"))
             {
-                try
+                if (_editedScreenshot != null)
                 {
-                    screenshot = await _d.Screenshot.CaptureScreenshotAsync(default).ConfigureAwait(false);
+                    screenshot = _editedScreenshot;   // user-annotated version from the widget's editor
                 }
-                catch (System.Exception)
+                else if (_d.Screenshot != null)
                 {
-                    screenshot = null;
+                    try
+                    {
+                        screenshot = await _d.Screenshot.CaptureScreenshotAsync(default).ConfigureAwait(false);
+                    }
+                    catch (System.Exception)
+                    {
+                        screenshot = null;
+                    }
                 }
             }
             var replay = _replay.Snapshot().Count > 0 && !excludeKeys.Contains("replays") ? _replay.BuildReplay() : null;
@@ -185,6 +194,31 @@ public sealed class ManagedBackend : IGleapBackend
     /// <summary>Pushes a periodically captured screenshot into the bounded replay ring
     /// (platform host owns the timer cadence).</summary>
     public void AddReplayFrame(string base64) => _replay.AddFrame(base64);
+
+    /// <summary>Captures the current app surface and pushes it to the widget via <c>screenshot-update</c>,
+    /// so the user can preview/annotate it in the report flow. Clears any prior edited screenshot to
+    /// start fresh. The platform host calls this just before opening the widget.</summary>
+    public async Task PrepareScreenshotAsync(CancellationToken ct = default)
+    {
+        _editedScreenshot = null;
+        if (_d.Screenshot == null)
+        {
+            return;
+        }
+        string? shot;
+        try
+        {
+            shot = await _d.Screenshot.CaptureScreenshotAsync(ct).ConfigureAwait(false);
+        }
+        catch (System.Exception)
+        {
+            shot = null;
+        }
+        if (shot != null)
+        {
+            _bridge.Send(new GleapBridgeMessage { Name = "screenshot-update", Data = shot });
+        }
+    }
 
     private static Dictionary<string, object?> ReadObject(JsonElement parent, string name)
     {

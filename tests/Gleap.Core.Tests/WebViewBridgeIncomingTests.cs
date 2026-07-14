@@ -93,6 +93,19 @@ public class WebViewBridgeIncomingTests
     }
 
     [Fact]
+    public void ScreenshotUpdated_RaisesEventWithDataUri()
+    {
+        var ch = new FakeWebViewChannel();
+        var bridge = NewBridge(ch);
+        string? shot = null;
+        bridge.ScreenshotUpdated += s => shot = s;
+
+        ch.SimulateIncoming("{\"name\":\"screenshot-updated\",\"data\":\"data:image/png;base64,AAA\"}");
+
+        Assert.Equal("data:image/png;base64,AAA", shot);
+    }
+
+    [Fact]
     public void MalformedJson_IsIgnored()
     {
         var ch = new FakeWebViewChannel();
