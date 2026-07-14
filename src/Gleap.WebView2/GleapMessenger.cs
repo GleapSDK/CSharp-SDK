@@ -8,6 +8,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 
@@ -405,18 +406,43 @@ public class GleapMessenger : Grid, IDisposable
         try
         {
             using var doc = JsonDocument.Parse(_backend!.FlowConfigJson);
-            if (doc.RootElement.TryGetProperty("buttonColor", out var bc)
-                && bc.ValueKind == JsonValueKind.String
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("buttonColor", out var bc) && bc.ValueKind == JsonValueKind.String
                 && ColorConverter.ConvertFromString(bc.GetString()) is Color color)
             {
                 _launcher.Background = new SolidColorBrush(color);
             }
+
+            // Configured button logo replaces the generic chat glyph (matches the web / native SDKs).
+            if (root.TryGetProperty("buttonLogo", out var bl) && bl.ValueKind == JsonValueKind.String
+                && Uri.TryCreate(bl.GetString(), UriKind.Absolute, out var logoUri))
+            {
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.UriSource = logoUri;
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.EndInit();
+                _chatIcon.Child = new Image { Source = bmp, Stretch = Stretch.Uniform };
+            }
+
+            // Configured position offset from the bottom-right corner.
+            double bx = ReadDouble(root, "buttonX"), by = ReadDouble(root, "buttonY");
+            if (bx != 0 || by != 0)
+            {
+                _launcher.Margin = new Thickness(0, 0, 28 + bx, 24 + by);
+                _overlay.Margin = new Thickness(0, 0, 28 + bx, 84 + by);
+                _badge.Margin = new Thickness(0, 0, 22 + bx, 54 + by);
+            }
         }
         catch
         {
-            // No / unparsable buttonColor — keep the default launcher colour.
+            // Keep the built-in launcher styling if the config is missing/unparsable.
         }
     }
+
+    private static double ReadDouble(JsonElement root, string name) =>
+        root.TryGetProperty(name, out var e) && e.ValueKind == JsonValueKind.Number && e.TryGetDouble(out var v) ? v : 0;
 
     private void UpdateBadge(object? count)
     {
