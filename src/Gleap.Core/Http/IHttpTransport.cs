@@ -10,4 +10,10 @@ public interface IHttpTransport
     Task<HttpResult> SendAsync(
         string method, string url, string? jsonBody,
         IReadOnlyDictionary<string, string> headers, CancellationToken ct);
+
+    /// <summary>Multipart <c>POST</c> of a single file under the form field <c>file</c> (for image uploads
+    /// to <c>/uploads/sdk</c>, which the report references by URL).</summary>
+    Task<HttpResult> UploadAsync(
+        string url, byte[] fileBytes, string fileName, string contentType,
+        IReadOnlyDictionary<string, string> headers, CancellationToken ct);
 }

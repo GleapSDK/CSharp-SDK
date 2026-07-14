@@ -156,6 +156,28 @@ public sealed class ApiClient
         }
     }
 
+    /// <summary>POST /uploads/sdk (multipart, field "file") and returns the server-assigned
+    /// <c>fileUrl</c>, or null on failure. Reports reference images by URL, not inline base64.</summary>
+    public async Task<string?> UploadImageAsync(
+        byte[] file, string fileName, string contentType, string? gleapId, string? gleapHash, CancellationToken ct)
+    {
+        var res = await _http.UploadAsync(_endpoints.ApiUrl + "/uploads/sdk", file, fileName, contentType,
+            BaseHeaders(gleapId, gleapHash), ct).ConfigureAwait(false);
+        if (!res.IsSuccess)
+        {
+            return null;
+        }
+        try
+        {
+            using var doc = JsonDocument.Parse(res.Body);
+            return doc.RootElement.TryGetProperty("fileUrl", out var u) ? u.GetString() : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>POST /bugs/v2 with the assembled report body. Returns the raw response JSON.</summary>
     public async Task<string> SubmitBugAsync(
         IReadOnlyDictionary<string, object?> body, string? gleapId, string? gleapHash, CancellationToken ct)

@@ -17,7 +17,7 @@ public static class FeedbackAssembler
         bool isSilent,
         ISet<string> excludeKeys,
         IReadOnlyList<GleapAttachment>? attachments = null,
-        string? screenshot = null,
+        string? screenshotUrl = null,
         IReadOnlyDictionary<string, object?>? replay = null)
     {
         var body = new Dictionary<string, object?>();
@@ -55,9 +55,9 @@ public static class FeedbackAssembler
         {
             body["attachments"] = attachments;
         }
-        if (screenshot != null)
+        if (screenshotUrl != null)
         {
-            body["screenshot"] = screenshot;
+            body["screenshotUrl"] = screenshotUrl;
         }
         if (replay != null)
         {
@@ -71,6 +71,10 @@ public static class FeedbackAssembler
         if (excludeKeys.Contains("replays"))
         {
             body.Remove("replay");
+        }
+        if (excludeKeys.Contains("screenshot"))
+        {
+            body.Remove("screenshotUrl");
         }
 
         return body;

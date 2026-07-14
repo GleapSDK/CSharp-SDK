@@ -123,30 +123,28 @@ public sealed class ManagedBackend : IGleapBackend
 
         try
         {
-            string? screenshot = null;
+            string? dataUri = null;
             if (!excludeKeys.Contains("screenshot"))
             {
-                if (_editedScreenshot != null)
-                {
-                    screenshot = _editedScreenshot;   // user-annotated version from the widget's editor
-                }
-                else if (_d.Screenshot != null)
+                dataUri = _editedScreenshot;   // user-annotated version from the widget's editor, if any
+                if (dataUri == null && _d.Screenshot != null)
                 {
                     try
                     {
-                        screenshot = await _d.Screenshot.CaptureScreenshotAsync(default).ConfigureAwait(false);
+                        dataUri = await _d.Screenshot.CaptureScreenshotAsync(default).ConfigureAwait(false);
                     }
                     catch (System.Exception)
                     {
-                        screenshot = null;
+                        dataUri = null;
                     }
                 }
             }
+            var screenshotUrl = await UploadScreenshotAsync(dataUri, default).ConfigureAwait(false);
             var replay = _replay.Snapshot().Count > 0 && !excludeKeys.Contains("replays") ? _replay.BuildReplay() : null;
 
             var body = FeedbackAssembler.Build(
                 _collector.BuildTicketData(), formData, type, null, false, excludeKeys, _attachments.Snapshot(),
-                screenshot: screenshot, replay: replay);
+                screenshotUrl: screenshotUrl, replay: replay);
             var response = await _api.SubmitBugAsync(body, _session.GleapId, _session.GleapHash, default).ConfigureAwait(false);
             _bridge.Send(new GleapBridgeMessage { Name = "feedback-sent", Data = new Dictionary<string, object?> { ["response"] = response } });
             _events.Emit("feedbackSent", response);
@@ -172,23 +170,24 @@ public sealed class ManagedBackend : IGleapBackend
             : new HashSet<string> { "screenshot", "replays", "attachments" };
         var formData = new Dictionary<string, object?> { ["description"] = description };
 
-        string? screenshot = null;
+        string? dataUri = null;
         if (_d.Screenshot != null && !excludeKeys.Contains("screenshot"))
         {
             try
             {
-                screenshot = await _d.Screenshot.CaptureScreenshotAsync(ct).ConfigureAwait(false);
+                dataUri = await _d.Screenshot.CaptureScreenshotAsync(ct).ConfigureAwait(false);
             }
             catch (System.Exception)
             {
-                screenshot = null;
+                dataUri = null;
             }
         }
+        var screenshotUrl = await UploadScreenshotAsync(dataUri, ct).ConfigureAwait(false);
         var replay = _replay.Snapshot().Count > 0 && !excludeKeys.Contains("replays") ? _replay.BuildReplay() : null;
 
         var body = FeedbackAssembler.Build(
             _collector.BuildTicketData(), formData, "CRASH", priority, true, excludeKeys, _attachments.Snapshot(),
-            screenshot: screenshot, replay: replay);
+            screenshotUrl: screenshotUrl, replay: replay);
         await _api.SubmitBugAsync(body, _session.GleapId, _session.GleapHash, ct).ConfigureAwait(false);
     }
 
@@ -250,6 +249,58 @@ public sealed class ManagedBackend : IGleapBackend
             }
         }
         return keys;
+    }
+
+    /// <summary>Uploads a screenshot data-URI to /uploads/sdk and returns its URL (reports reference the
+    /// image by URL, like the native SDKs — not inline base64). Returns null if there is nothing to upload
+    /// or the upload fails, so a report is never blocked by it.</summary>
+    private async Task<string?> UploadScreenshotAsync(string? dataUri, CancellationToken ct)
+    {
+        var decoded = DecodeDataUri(dataUri);
+        if (decoded == null)
+        {
+            return null;
+        }
+        try
+        {
+            return await _api.UploadImageAsync(
+                decoded.Value.Bytes, decoded.Value.FileName, decoded.Value.ContentType,
+                _session.GleapId, _session.GleapHash, ct).ConfigureAwait(false);
+        }
+        catch (System.Exception)
+        {
+            return null;
+        }
+    }
+
+    private static (byte[] Bytes, string FileName, string ContentType)? DecodeDataUri(string? dataUri)
+    {
+        const string prefix = "data:";
+        if (dataUri == null)
+        {
+            return null;
+        }
+        var comma = dataUri.IndexOf(',');
+        if (comma < 0 || !dataUri.StartsWith(prefix, System.StringComparison.Ordinal))
+        {
+            return null;
+        }
+        var contentType = dataUri.Substring(prefix.Length, comma - prefix.Length).Split(';')[0];
+        if (string.IsNullOrEmpty(contentType))
+        {
+            contentType = "image/png";
+        }
+        byte[] bytes;
+        try
+        {
+            bytes = System.Convert.FromBase64String(dataUri.Substring(comma + 1));
+        }
+        catch (System.FormatException)
+        {
+            return null;
+        }
+        var extension = contentType == "image/jpeg" ? "jpg" : "png";
+        return (bytes, "screenshot." + extension, contentType);
     }
 
     private SessionSnapshot BuildSnapshot() => new()

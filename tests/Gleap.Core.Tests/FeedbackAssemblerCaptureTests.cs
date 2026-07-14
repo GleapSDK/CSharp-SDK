@@ -15,10 +15,10 @@ public class FeedbackAssemblerCaptureTests
             false,
             new HashSet<string>(),
             attachments: null,
-            screenshot: "data:image/png;base64,AAA",
+            screenshotUrl: "https://uploads.gleap.io/x.png",
             replay: new Dictionary<string, object?> { ["interval"] = 1000 });
 
-        Assert.Equal("data:image/png;base64,AAA", result["screenshot"]);
+        Assert.Equal("https://uploads.gleap.io/x.png", result["screenshotUrl"]);
         Assert.True(result.ContainsKey("replay"));
     }
 
@@ -33,10 +33,10 @@ public class FeedbackAssemblerCaptureTests
             false,
             excludeKeys: new HashSet<string> { "screenshot", "replays" },
             attachments: null,
-            screenshot: "data:image/png;base64,AAA",
+            screenshotUrl: "https://uploads.gleap.io/x.png",
             replay: new Dictionary<string, object?> { ["interval"] = 1000 });
 
-        Assert.False(result.ContainsKey("screenshot"));
+        Assert.False(result.ContainsKey("screenshotUrl"));
         Assert.False(result.ContainsKey("replay"));
     }
 }
