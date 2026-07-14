@@ -115,7 +115,12 @@ public sealed class MauiWebViewChannel : IWebViewChannel
     private Task WirePlatformAsync()
     {
         var native = (WebKit.WKWebView)_webView.Handler!.PlatformView!;
-        native.Configuration.UserContentController.AddScriptMessageHandler(new IosBridge(this), "gleapCallback");
+        var controller = native.Configuration.UserContentController;
+        // WKUserContentController throws if a handler name is added twice. Re-attach (e.g. the WebView's
+        // handler being recreated) would otherwise crash — remove any prior "gleapCallback" first so
+        // registration is idempotent.
+        controller.RemoveScriptMessageHandler("gleapCallback");
+        controller.AddScriptMessageHandler(new IosBridge(this), "gleapCallback");
         return Task.CompletedTask;
     }
 
