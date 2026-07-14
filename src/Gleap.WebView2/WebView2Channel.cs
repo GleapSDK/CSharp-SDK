@@ -1,16 +1,19 @@
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using System.Windows.Threading;
 using GleapSDK.Bridge;
 using Microsoft.Web.WebView2.Core;
+using Microsoft.Web.WebView2.Wpf;
 
 namespace GleapSDK.WebView2;
 
 /// <summary>
-/// <see cref="IWebViewChannel"/> over a WPF <see cref="Microsoft.Web.WebView2.Wpf.WebView2"/> control.
-/// Injects the <c>GleapJSBridge</c> shim so the Gleap widget's <c>/appnew</c> wrapper recognizes
-/// this host as native, forwards page-&gt;host messages from <c>chrome.webview.postMessage</c>, and
-/// runs host-&gt;page scripts on the UI thread.
+/// <see cref="IWebViewChannel"/> over any WPF WebView2 control (<see cref="IWebView2"/> — either the
+/// windowed <see cref="Microsoft.Web.WebView2.Wpf.WebView2"/> or the airspace-free
+/// <see cref="WebView2CompositionControl"/>). Injects the <c>GleapJSBridge</c> shim so the Gleap
+/// widget's <c>/appnew</c> wrapper recognizes this host as native, forwards page-&gt;host messages
+/// from <c>chrome.webview.postMessage</c>, and runs host-&gt;page scripts on the UI thread.
 /// </summary>
 public sealed class WebView2Channel : IWebViewChannel
 {
@@ -19,10 +22,15 @@ public sealed class WebView2Channel : IWebViewChannel
     private const string BridgeShim =
         "window.GleapJSBridge = { gleapCallback: function (s) { window.chrome.webview.postMessage(s); } };";
 
-    private readonly Microsoft.Web.WebView2.Wpf.WebView2 _webView;
+    private readonly IWebView2 _webView;
+    private readonly Dispatcher _dispatcher;
     private CoreWebView2? _core;
 
-    public WebView2Channel(Microsoft.Web.WebView2.Wpf.WebView2 webView) => _webView = webView;
+    public WebView2Channel(IWebView2 webView)
+    {
+        _webView = webView;
+        _dispatcher = ((DispatcherObject)webView).Dispatcher;
+    }
 
     /// <inheritdoc />
     public event Action<string>? MessageReceived;
@@ -31,7 +39,7 @@ public sealed class WebView2Channel : IWebViewChannel
     /// Call once before <see cref="Navigate"/>.</summary>
     public async Task InitializeAsync()
     {
-        await _webView.EnsureCoreWebView2Async().ConfigureAwait(true);
+        await _webView.EnsureCoreWebView2Async(null).ConfigureAwait(true);
         _core = _webView.CoreWebView2;
         await _core.AddScriptToExecuteOnDocumentCreatedAsync(BridgeShim).ConfigureAwait(true);
         _core.WebMessageReceived += OnWebMessageReceived;
@@ -43,13 +51,13 @@ public sealed class WebView2Channel : IWebViewChannel
     /// <inheritdoc />
     public void ExecuteJavaScript(string script)
     {
-        if (_webView.Dispatcher.CheckAccess())
+        if (_dispatcher.CheckAccess())
         {
             RunScript(script);
         }
         else
         {
-            _webView.Dispatcher.BeginInvoke(new Action(() => RunScript(script)));
+            _dispatcher.BeginInvoke(new Action(() => RunScript(script)));
         }
     }
 

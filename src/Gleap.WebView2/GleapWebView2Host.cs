@@ -16,7 +16,7 @@ public static class GleapWebView2Host
     public const string SdkVersion = "0.1.0";
 
     public static async Task<ManagedBackend> AttachAsync(
-        Microsoft.Web.WebView2.Wpf.WebView2 webView, string sdkKey, GleapEndpoints? endpoints = null)
+        Microsoft.Web.WebView2.Wpf.IWebView2 webView, string sdkKey, GleapEndpoints? endpoints = null)
     {
         var resolvedEndpoints = endpoints ?? GleapEndpoints.Default;
 

@@ -13,47 +13,53 @@ using System.Windows.Threading;
 namespace GleapSDK.WebView2;
 
 /// <summary>
-/// A drop-in WPF control that reproduces the JavaScript-SDK experience on the desktop:
-/// a round floating launcher button that slides the Gleap messenger in as a bottom-right
-/// overlay, and slides it back out when the widget is closed. Host apps place this control
-/// on top of their own UI and set <see cref="SdkKey"/> — nothing else is required.
+/// A drop-in WPF control that reproduces the JavaScript-SDK experience on the desktop: a round
+/// floating launcher button that slides the Gleap messenger in as a rounded bottom-right overlay,
+/// and slides it back out on close. Host apps place this control on top of their own UI and set
+/// <see cref="SdkKey"/> — nothing else is required.
 ///
-/// <para>A native desktop app owns its own window, so — unlike the web JS SDK — the SDK
-/// cannot inject a launcher over arbitrary app UI; this control is how a WPF app opts into
-/// that experience. The messenger session is created lazily on the first open, so startup
-/// shows only the launcher (no flashing WebView).</para>
+/// <para>The messenger is hosted in a <see cref="Microsoft.Web.WebView2.Wpf.WebView2CompositionControl"/>
+/// (airspace-free composition rendering), so it supports true rounded corners, a smooth slide/fade
+/// animation and correct input — matching the web widget rather than a windowed overlay. The session
+/// is preloaded (invisibly) when the control loads, so the first open is instant and the unread badge
+/// is live before opening.</para>
 ///
 /// <code>
 /// var messenger = new GleapMessenger { SdkKey = "YOUR_SDK_KEY" };
 /// rootGrid.Children.Add(messenger);
 /// </code>
-/// After the first open the static <see cref="Gleap"/> facade drives the same messenger
+/// After load the static <see cref="Gleap"/> facade drives the same messenger
 /// (<c>Gleap.StartBot("")</c>, <c>Gleap.OpenHelpCenter()</c>, …).
 /// </summary>
 public class GleapMessenger : Grid, IDisposable
 {
-    private static readonly Duration SlideDuration = new(TimeSpan.FromMilliseconds(300));
+    private static readonly Duration SlideDuration = new(TimeSpan.FromMilliseconds(280));
+    private const double CornerRadius = 16;
+    private const double SlideDistance = 44;
 
-    private readonly Microsoft.Web.WebView2.Wpf.WebView2 _webView;
+    private readonly Microsoft.Web.WebView2.Wpf.WebView2CompositionControl _webView;
     private readonly Border _panelHost;
     private readonly TranslateTransform _panelSlide;
     private readonly Border _launcher;
     private readonly ScaleTransform _launcherScale;
+    private readonly Viewbox _chatIcon;
+    private readonly Viewbox _closeIcon;
     private readonly Border _badge;
     private readonly TextBlock _badgeText;
     private DispatcherTimer? _pollTimer;
     private ManagedBackend? _backend;
     private bool _initializing;
+    private bool _isOpen;
     private bool _disposed;
 
-    /// <summary>Project SDK key. Set before the first open (e.g. in the host's constructor).</summary>
+    /// <summary>Project SDK key. Set before the control loads (e.g. in the host's constructor).</summary>
     public string? SdkKey { get; set; }
 
-    /// <summary>Width of the messenger overlay panel (default 400).</summary>
-    public double PanelWidth { get; set; } = 400;
+    /// <summary>Width of the messenger overlay panel (default 384).</summary>
+    public double PanelWidth { get; set; } = 384;
 
-    /// <summary>Height of the messenger overlay panel (default 640).</summary>
-    public double PanelHeight { get; set; } = 640;
+    /// <summary>Height of the messenger overlay panel (default 560).</summary>
+    public double PanelHeight { get; set; } = 560;
 
     /// <summary>Launcher fill colour (default Gleap blue). Customize to match your brand.</summary>
     public Brush LauncherBackground { get; set; } = new SolidColorBrush(Color.FromRgb(0x48, 0x5B, 0xFF));
@@ -64,32 +70,53 @@ public class GleapMessenger : Grid, IDisposable
     /// <summary>Outbound poll interval (default 5s).</summary>
     public TimeSpan PollingInterval { get; set; } = TimeSpan.FromSeconds(5);
 
-    /// <summary>The backend created on first open, or null until then.</summary>
+    /// <summary>The backend created on preload, or null until then.</summary>
     public ManagedBackend? Backend => _backend;
 
     /// <summary>True while the messenger overlay is shown.</summary>
-    public bool IsMessengerVisible => _panelHost.Visibility == Visibility.Visible;
-
-    private double HiddenOffset => PanelHeight + 40;
+    public bool IsMessengerVisible => _isOpen;
 
     public GleapMessenger()
     {
-        _webView = new Microsoft.Web.WebView2.Wpf.WebView2();
+        _webView = new Microsoft.Web.WebView2.Wpf.WebView2CompositionControl
+        {
+            Width = PanelWidth,
+            Height = PanelHeight,
+            // Airspace-free composition rendering honours this clip, giving true rounded corners.
+            Clip = new RectangleGeometry(new Rect(0, 0, PanelWidth, PanelHeight), CornerRadius, CornerRadius)
+        };
 
-        _panelSlide = new TranslateTransform(0, HiddenOffset);
+        _panelSlide = new TranslateTransform(0, SlideDistance);
         _panelHost = new Border
         {
             Width = PanelWidth,
             Height = PanelHeight,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Bottom,
-            Margin = new Thickness(0, 0, 24, 24),
-            Visibility = Visibility.Collapsed,
+            Margin = new Thickness(0, 0, 24, 96),   // sits above the launcher, JS-SDK style
+            CornerRadius = new CornerRadius(CornerRadius),
+            Background = Brushes.White,
+            Opacity = 0,
+            IsHitTestVisible = false,
             RenderTransform = _panelSlide,
-            Background = Brushes.Transparent,
-            Effect = new DropShadowEffect { BlurRadius = 24, ShadowDepth = 4, Opacity = 0.22 },
+            Effect = new DropShadowEffect { BlurRadius = 28, ShadowDepth = 6, Opacity = 0.22 },
             Child = _webView
         };
+
+        _chatIcon = MakeIcon(new Path
+        {
+            Fill = Brushes.White,
+            Data = Geometry.Parse("M6,3 H22 A4,4 0 0 1 26,7 V17 A4,4 0 0 1 22,21 H14 L9,26 V21 H6 A4,4 0 0 1 2,17 V7 A4,4 0 0 1 6,3 Z")
+        }, 26);
+        _closeIcon = MakeIcon(new Path
+        {
+            Stroke = Brushes.White,
+            StrokeThickness = 2.4,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            Data = Geometry.Parse("M3,3 L15,15 M15,3 L3,15")
+        }, 18);
+        _closeIcon.Opacity = 0;
 
         _launcherScale = new ScaleTransform(1, 1);
         _launcher = new Border
@@ -105,19 +132,9 @@ public class GleapMessenger : Grid, IDisposable
             Effect = new DropShadowEffect { BlurRadius = 16, ShadowDepth = 2, Opacity = 0.3 },
             RenderTransform = _launcherScale,
             RenderTransformOrigin = new Point(0.5, 0.5),
-            Child = new Viewbox
-            {
-                Width = 26,
-                Height = 26,
-                Child = new Path
-                {
-                    Fill = Brushes.White,
-                    // A simple rounded speech bubble.
-                    Data = Geometry.Parse("M6,3 H22 A4,4 0 0 1 26,7 V17 A4,4 0 0 1 22,21 H14 L9,26 V21 H6 A4,4 0 0 1 2,17 V7 A4,4 0 0 1 6,3 Z")
-                }
-            }
+            Child = new Grid { Children = { _chatIcon, _closeIcon } }
         };
-        _launcher.MouseLeftButtonUp += (_, _) => ShowMessenger();
+        _launcher.MouseLeftButtonUp += (_, _) => Toggle();
         _launcher.MouseEnter += (_, _) => AnimateLauncherScale(1.08);
         _launcher.MouseLeave += (_, _) => AnimateLauncherScale(1.0);
 
@@ -147,14 +164,54 @@ public class GleapMessenger : Grid, IDisposable
         Children.Add(_panelHost);
         Children.Add(_launcher);
         Children.Add(_badge);
+
+        Loaded += OnLoaded;
     }
 
-    /// <summary>Opens the messenger overlay (initializing the session on first use).</summary>
+    private static Viewbox MakeIcon(UIElement child, double size) => new()
+    {
+        Width = size,
+        Height = size,
+        HorizontalAlignment = HorizontalAlignment.Center,
+        VerticalAlignment = VerticalAlignment.Center,
+        Child = child
+    };
+
+    private async void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        if (_backend == null && !_initializing && !string.IsNullOrEmpty(SdkKey))
+        {
+            try
+            {
+                await InitializeAsync().ConfigureAwait(true);
+            }
+            catch
+            {
+                // Offline / bad key — the launcher stays; opening will surface the failure again.
+            }
+        }
+    }
+
+    /// <summary>Toggles the messenger open/closed (what the launcher button does).</summary>
+    public void Toggle()
+    {
+        if (_isOpen)
+        {
+            HideMessenger();
+            Gleap.Close();
+        }
+        else
+        {
+            ShowMessenger();
+        }
+    }
+
+    /// <summary>Opens the messenger overlay (initializing the session if preload has not finished).</summary>
     public void ShowMessenger() => _ = OpenAsync();
 
     private async Task OpenAsync()
     {
-        if (_disposed || string.IsNullOrEmpty(SdkKey))
+        if (_disposed || _isOpen || string.IsNullOrEmpty(SdkKey))
         {
             return;
         }
@@ -167,35 +224,37 @@ public class GleapMessenger : Grid, IDisposable
         }
         catch
         {
-            return; // init failure (offline, bad key) — leave the launcher in place
+            return;
         }
         if (_backend == null)
         {
             return;
         }
 
+        _isOpen = true;
         _badge.Visibility = Visibility.Collapsed;
-        _panelHost.Visibility = Visibility.Visible;
+        _panelHost.IsHitTestVisible = true;
         AnimatePanel(open: true);
-        FadeLauncher(visible: false);
+        CrossfadeLauncher(open: true);
         Gleap.Open();
     }
 
-    /// <summary>Hides the messenger overlay and returns to the launcher.</summary>
+    /// <summary>Hides the messenger overlay and returns the launcher to its chat state.</summary>
     public void HideMessenger()
     {
-        if (_panelHost.Visibility == Visibility.Visible)
+        if (!_isOpen)
         {
-            AnimatePanel(open: false);
+            return;
         }
-        FadeLauncher(visible: true);
+        _isOpen = false;
+        _panelHost.IsHitTestVisible = false;
+        AnimatePanel(open: false);
+        CrossfadeLauncher(open: false);
     }
 
     /// <summary>
     /// Creates the messenger session against <see cref="SdkKey"/> and wires it to this control.
-    /// Idempotent. Called automatically on the first open; call it yourself only to preload.
-    /// The WebView is shown off-screen during CoreWebView2 startup (a collapsed WebView2 will
-    /// not create its HWND) and left hidden afterwards.
+    /// Idempotent; called automatically on load to preload the widget invisibly.
     /// </summary>
     public async Task InitializeAsync(GleapSDK.Http.GleapEndpoints? endpoints = null)
     {
@@ -211,14 +270,12 @@ public class GleapMessenger : Grid, IDisposable
         _initializing = true;
         try
         {
-            _panelSlide.Y = HiddenOffset;                 // keep it off-screen during startup
-            _panelHost.Visibility = Visibility.Visible;   // required for the CoreWebView2 HWND
+            // Composition rendering + Opacity 0 keeps the preload invisible (no flash).
             _backend = await GleapWebView2Host.AttachAsync(_webView, SdkKey!, endpoints).ConfigureAwait(true);
 
             Gleap.RegisterListener("widgetClosed", _ => OnUi(HideMessenger));
             Gleap.RegisterListener("notificationCountUpdated", count => OnUi(() => UpdateBadge(count)));
 
-            _panelHost.Visibility = Visibility.Collapsed; // resting (hidden) state
             if (EnableOutboundPolling)
             {
                 StartPolling();
@@ -232,39 +289,20 @@ public class GleapMessenger : Grid, IDisposable
 
     private void AnimatePanel(bool open)
     {
-        var slide = MakeDouble(open ? HiddenOffset : 0, open ? 0 : HiddenOffset, open ? EasingMode.EaseOut : EasingMode.EaseIn);
+        var slide = MakeDouble(open ? SlideDistance : 0, open ? 0 : SlideDistance, open ? EasingMode.EaseOut : EasingMode.EaseIn);
         var fade = MakeDouble(open ? 0 : 1, open ? 1 : 0, EasingMode.EaseOut);
-        if (!open)
-        {
-            fade.Completed += (_, _) => _panelHost.Visibility = Visibility.Collapsed;
-        }
         _panelHost.BeginAnimation(OpacityProperty, fade);
         _panelSlide.BeginAnimation(TranslateTransform.YProperty, slide);
     }
 
-    private void FadeLauncher(bool visible)
+    private void CrossfadeLauncher(bool open)
     {
-        if (visible)
-        {
-            _launcher.Visibility = Visibility.Visible;
-        }
-        var fade = MakeDouble(visible ? 0 : 1, visible ? 1 : 0, EasingMode.EaseOut);
-        var scale = MakeDouble(visible ? 0.6 : 1, visible ? 1 : 0.6, EasingMode.EaseOut);
-        if (!visible)
-        {
-            fade.Completed += (_, _) => _launcher.Visibility = Visibility.Collapsed;
-        }
-        _launcher.BeginAnimation(OpacityProperty, fade);
-        _launcherScale.BeginAnimation(ScaleTransform.ScaleXProperty, scale);
-        _launcherScale.BeginAnimation(ScaleTransform.ScaleYProperty, scale);
+        _chatIcon.BeginAnimation(OpacityProperty, MakeDouble(open ? 1 : 0, open ? 0 : 1, EasingMode.EaseOut));
+        _closeIcon.BeginAnimation(OpacityProperty, MakeDouble(open ? 0 : 1, open ? 1 : 0, EasingMode.EaseOut));
     }
 
     private void AnimateLauncherScale(double target)
     {
-        if (_launcher.Visibility != Visibility.Visible)
-        {
-            return;
-        }
         var a = new DoubleAnimation(target, new Duration(TimeSpan.FromMilliseconds(120)))
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
@@ -302,7 +340,7 @@ public class GleapMessenger : Grid, IDisposable
             _ => int.TryParse(count?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var p) ? p : 0
         };
 
-        if (n > 0 && _launcher.Visibility == Visibility.Visible)
+        if (n > 0 && !_isOpen)
         {
             _badgeText.Text = n > 99 ? "99+" : n.ToString(CultureInfo.InvariantCulture);
             _badge.Visibility = Visibility.Visible;
