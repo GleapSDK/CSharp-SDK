@@ -23,6 +23,8 @@ public sealed partial class WebViewBridge
     public event Action<string>? ScreenshotUpdated;
     /// <summary>Raised on "cleanup-drawings" — the user discarded their screenshot annotations.</summary>
     public event Action? DrawingsCleanedUp;
+    /// <summary>Raised on "start-screen-drawing" — the widget opened the full-area screenshot editor.</summary>
+    public event Action? ScreenDrawingStarted;
 
     partial void OnMessageReceived(string json)
     {
@@ -103,6 +105,10 @@ public sealed partial class WebViewBridge
 
             case "cleanup-drawings":
                 DrawingsCleanedUp?.Invoke();
+                break;
+
+            case "start-screen-drawing":
+                ScreenDrawingStarted?.Invoke();
                 break;
 
                 // frontend-tool-execute, cleanup-drawings, screenshot-updated -> handled in SP-0 Part 2.
