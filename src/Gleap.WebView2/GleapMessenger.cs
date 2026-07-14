@@ -121,11 +121,12 @@ public class GleapMessenger : Grid, IDisposable
         _closeIcon = MakeIcon(new Path
         {
             Stroke = Brushes.White,
-            StrokeThickness = 2.4,
+            StrokeThickness = 2.2,
             StrokeStartLineCap = PenLineCap.Round,
             StrokeEndLineCap = PenLineCap.Round,
-            Data = Geometry.Parse("M3,3 L15,15 M15,3 L3,15")
-        }, 18);
+            // Symmetric about the origin so the Viewbox centres it exactly.
+            Data = Geometry.Parse("M -7 -7 L 7 7 M 7 -7 L -7 7")
+        }, 20);
         _closeIcon.Opacity = 0;
 
         _launcherScale = new ScaleTransform(1, 1);
