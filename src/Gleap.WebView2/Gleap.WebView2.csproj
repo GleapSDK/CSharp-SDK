@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <!-- Windows-versioned TFM so WebView2CompositionControl's WinRT projections
+         (Microsoft.Windows.SDK.NET) are available for airspace-free composition rendering. -->
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <UseWPF>true</UseWPF>
     <RootNamespace>GleapSDK.WebView2</RootNamespace>
     <AssemblyName>Gleap.WebView2</AssemblyName>
