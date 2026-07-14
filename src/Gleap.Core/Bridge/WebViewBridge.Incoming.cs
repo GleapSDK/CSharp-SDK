@@ -17,6 +17,8 @@ public sealed partial class WebViewBridge
     public event System.Action? CollectTicketDataRequested;
     /// <summary>Raised on "tool-execution" — the widget is invoking an agent tool.</summary>
     public event Action<JsonElement>? ToolExecutionRequested;
+    /// <summary>Raised on "height-update" — the widget's desired content height in pixels (for responsive sizing).</summary>
+    public event Action<double>? HeightUpdated;
 
     partial void OnMessageReceived(string json)
     {
@@ -73,6 +75,19 @@ public sealed partial class WebViewBridge
 
             case "send-feedback":
                 SendFeedbackRequested?.Invoke(msg.Data);
+                break;
+
+            case "height-update":
+                if (msg.Data.ValueKind == JsonValueKind.Number && msg.Data.TryGetDouble(out var height))
+                {
+                    HeightUpdated?.Invoke(height);
+                }
+                else if (msg.Data.ValueKind == JsonValueKind.String
+                    && double.TryParse(msg.Data.GetString(), System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+                {
+                    HeightUpdated?.Invoke(parsed);
+                }
                 break;
 
                 // frontend-tool-execute, cleanup-drawings, screenshot-updated -> handled in SP-0 Part 2.

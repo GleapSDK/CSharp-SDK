@@ -98,6 +98,7 @@ public sealed class ManagedBackend : IGleapBackend
             _events.Emit("widgetClosed");
         };
         _bridge.SendFeedbackRequested += data => { LastFeedbackTask = HandleSendFeedbackAsync(data); };
+        _bridge.HeightUpdated += height => _events.Emit("widgetHeightChanged", height);
         _bridge.FeedbackFlowStarted += _ => _events.Emit("feedbackFlowStarted");
         _bridge.CustomActionTriggered += (name, token) =>
             _events.Emit("customActionTriggered", new Dictionary<string, object?> { ["name"] = name, ["shareToken"] = token });

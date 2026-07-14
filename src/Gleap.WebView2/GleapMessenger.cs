@@ -52,6 +52,7 @@ public class GleapMessenger : Grid, IDisposable
     private bool _initializing;
     private bool _isOpen;
     private bool _disposed;
+    private double? _contentHeight;
 
     /// <summary>Project SDK key. Set before the control loads (e.g. in the host's constructor).</summary>
     public string? SdkKey { get; set; }
@@ -168,6 +169,7 @@ public class GleapMessenger : Grid, IDisposable
         Children.Add(_badge);
 
         Loaded += OnLoaded;
+        SizeChanged += (_, _) => ResizePanel();   // shrink to fit when the window is short
     }
 
     private static Viewbox MakeIcon(UIElement child, double size) => new()
@@ -278,6 +280,7 @@ public class GleapMessenger : Grid, IDisposable
 
             Gleap.RegisterListener("widgetClosed", _ => OnUi(HideMessenger));
             Gleap.RegisterListener("notificationCountUpdated", count => OnUi(() => UpdateBadge(count)));
+            Gleap.RegisterListener("widgetHeightChanged", h => OnUi(() => OnWidgetHeight(h)));
 
             if (EnableOutboundPolling)
             {
@@ -332,6 +335,38 @@ public class GleapMessenger : Grid, IDisposable
             }
         };
         _pollTimer.Start();
+    }
+
+    private void OnWidgetHeight(object? value)
+    {
+        var h = value switch
+        {
+            double d => d,
+            int i => i,
+            long l => l,
+            _ => double.TryParse(value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var p) ? p : 0
+        };
+        if (h > 0)
+        {
+            _contentHeight = h;
+            ResizePanel();
+        }
+    }
+
+    /// <summary>Sizes the panel to the widget's content height, clamped to <see cref="PanelHeight"/> and to
+    /// the available vertical space, so it shrinks to fit when the window is short (web-parity behaviour).</summary>
+    private void ResizePanel()
+    {
+        double available = ActualHeight > 0 ? ActualHeight - 84 /*launcher zone*/ - 24 /*top gap*/ : PanelHeight;
+        double target = _contentHeight is { } c ? Math.Min(c, PanelHeight) : PanelHeight;
+        double h = Math.Round(Math.Max(220, Math.Min(target, available)));
+        if (h == _panelHost.Height)
+        {
+            return;
+        }
+        _panelHost.Height = h;
+        _webView.Height = h;
+        _webView.Clip = new RectangleGeometry(new Rect(0, 0, PanelWidth, h), CornerRadius, CornerRadius);
     }
 
     /// <summary>Recolours the launcher to the project's configured <c>buttonColor</c> so it matches the

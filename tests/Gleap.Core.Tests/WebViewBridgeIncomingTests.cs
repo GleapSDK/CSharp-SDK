@@ -80,6 +80,19 @@ public class WebViewBridgeIncomingTests
     }
 
     [Fact]
+    public void HeightUpdate_RaisesHeightUpdatedWithPixels()
+    {
+        var ch = new FakeWebViewChannel();
+        var bridge = NewBridge(ch);
+        double? height = null;
+        bridge.HeightUpdated += h => height = h;
+
+        ch.SimulateIncoming("{\"name\":\"height-update\",\"data\":540}");
+
+        Assert.Equal(540, height);
+    }
+
+    [Fact]
     public void MalformedJson_IsIgnored()
     {
         var ch = new FakeWebViewChannel();
