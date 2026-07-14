@@ -12,6 +12,7 @@ using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using GleapSDK.Outbound;
 
 namespace GleapSDK.WebView2;
 
@@ -59,6 +60,7 @@ public class GleapMessenger : Grid, IDisposable
     private GleapSDK.Http.GleapEndpoints _endpoints = GleapSDK.Http.GleapEndpoints.Default;
     private GleapOutboundSurface? _banner;
     private GleapOutboundSurface? _modal;
+    private GleapNotificationStack? _notifications;
 
     // Held so Dispose can Gleap.RemoveListener them: the dispatcher removes by delegate reference,
     // and these lambdas capture `this`, so leaving them registered leaks the disposed control.
@@ -291,6 +293,7 @@ public class GleapMessenger : Grid, IDisposable
 
         _isOpen = true;
         _badge.Visibility = Visibility.Collapsed;
+        _notifications?.Clear();   // in-app notification cards clear when the messenger opens (native behavior)
         _overlay.IsHitTestVisible = true;
         AnimatePanel(open: true);
         CrossfadeLauncher(open: true);
@@ -331,6 +334,7 @@ public class GleapMessenger : Grid, IDisposable
             _endpoints = endpoints ?? GleapSDK.Http.GleapEndpoints.Default;
             // Composition rendering + Opacity 0 keeps the preload invisible (no flash).
             _backend = await GleapWebView2Host.AttachAsync(_webView, SdkKey!, endpoints).ConfigureAwait(true);
+            _notifications = new GleapNotificationStack(this, OnNotificationClicked);
             ApplyLauncherStyle();
 
             _onWidgetClosed = _ => OnUi(HideMessenger);
@@ -443,8 +447,8 @@ public class GleapMessenger : Grid, IDisposable
         _webView.Clip = new RectangleGeometry(new Rect(0, 0, PanelWidth, h), CornerRadius, CornerRadius);
     }
 
-    /// <summary>Renders an outbound banner/modal (matching the native SDKs) when the poll surfaces one.
-    /// Skipped while the messenger is open, mirroring the native dispatch guard.</summary>
+    /// <summary>Renders an outbound banner/modal/in-app-notification (matching the native SDKs) when the
+    /// poll surfaces one. Skipped while the messenger is open, mirroring the native dispatch guard.</summary>
     private void OnOutbound(object? payload)
     {
         if (_disposed || _isOpen || _backend == null || payload is not IReadOnlyDictionary<string, object?> dict)
@@ -465,6 +469,44 @@ public class GleapMessenger : Grid, IDisposable
             _modal?.Close();
             _modal = new GleapOutboundSurface(this, isModal: true, dataJson, flowConfig, _endpoints, () => _modal = null, ShowMessenger);
         }
+        else if (actionType == "notification")
+        {
+            var n = GleapNotification.FromActionJson(dataJson, Gleap.GetIdentity()?.Name);
+            if (n == null)
+            {
+                return;
+            }
+            // A checklist configured to pop in the widget opens it directly instead of showing a card
+            // (matches the native `popupType == "widget"` behavior).
+            if (n.Kind == GleapNotificationKind.Checklist && n.ChecklistPopupType == "widget"
+                && !string.IsNullOrEmpty(n.ChecklistId))
+            {
+                Gleap.OpenChecklist(n.ChecklistId!);
+                ShowMessenger();
+                return;
+            }
+            _notifications?.Show(n);
+        }
+    }
+
+    /// <summary>Tapping a preview card clears the stack and opens its target (conversation / news article /
+    /// checklist), then reveals the messenger — mirroring the native SDKs' notification routing.</summary>
+    private void OnNotificationClicked(GleapNotification n)
+    {
+        _notifications?.Clear();
+        if (!string.IsNullOrEmpty(n.ConversationShareToken))
+        {
+            Gleap.OpenConversation(n.ConversationShareToken!);
+        }
+        else if (!string.IsNullOrEmpty(n.NewsId))
+        {
+            Gleap.OpenNewsArticle(n.NewsId!);
+        }
+        else if (!string.IsNullOrEmpty(n.ChecklistId))
+        {
+            Gleap.OpenChecklist(n.ChecklistId!);
+        }
+        ShowMessenger();
     }
 
     /// <summary>Recolours the launcher to the project's configured <c>buttonColor</c> so it matches the
@@ -501,12 +543,16 @@ public class GleapMessenger : Grid, IDisposable
                 _launcher.Margin = new Thickness(0, 0, 28 + bx, 24 + by);
                 _overlay.Margin = new Thickness(0, 0, 28 + bx, 84 + by);
                 _badge.Margin = new Thickness(0, 0, 22 + bx, 54 + by);
+                _notifications?.SetOffset(bx, by);
             }
         }
         catch
         {
             // Keep the built-in launcher styling if the config is missing/unparsable.
         }
+
+        // Match the preview cards' avatar/progress accent to the (possibly recoloured) launcher.
+        _notifications?.SetAccent(_launcher.Background);
     }
 
     private static double ReadDouble(JsonElement root, string name) =>
@@ -582,6 +628,7 @@ public class GleapMessenger : Grid, IDisposable
                 _onOutboundSent = null;
             }
 
+            _notifications?.Clear();
             _banner?.Dispose();
             _modal?.Dispose();
             _webView.Dispose();
