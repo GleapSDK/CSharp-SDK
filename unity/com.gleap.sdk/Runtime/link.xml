@@ -1,0 +1,16 @@
+<!--
+  Preserve the Gleap SDK assemblies from IL2CPP/AOT managed-code stripping.
+
+  NewtonsoftJsonSerializer (the Unity default) reflects over the Gleap.Core DTOs — models plus the
+  config/session/ticket payloads — to (de)serialize them. On IL2CPP players (Android, iOS, consoles,
+  WebGL) the managed linker strips types and members it cannot see being used statically, which would
+  silently break that reflection at runtime. Preserving both Gleap assemblies keeps the reflected
+  types and their properties intact.
+
+  Newtonsoft.Json and System.Text.Json ship their own linker preservation via their UPM packages, so
+  they are not repeated here.
+-->
+<linker>
+  <assembly fullname="Gleap.Core" preserve="all" />
+  <assembly fullname="Gleap.Unity" preserve="all" />
+</linker>
