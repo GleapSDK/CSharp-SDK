@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Gleap.Sample.Maui.MainPage"
+             Title="Gleap MAUI demo">
+
+    <Grid RowDefinitions="Auto,*">
+        <VerticalStackLayout Grid.Row="0" Padding="16" Spacing="10">
+            <Label Text="Gleap MAUI demo" FontSize="22" FontAttributes="Bold" />
+            <Label Text="Attach hosts the Gleap messenger in the WebView below; the buttons drive it via the Gleap facade — same Gleap.Core as WPF/Unity."
+                   FontSize="13" TextColor="Gray" />
+            <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Center">
+                <Button Text="Attach" Clicked="OnAttach" Margin="0,0,8,8" />
+                <Button Text="Open" Clicked="OnOpen" Margin="0,0,8,8" />
+                <Button Text="Start Bot" Clicked="OnStartBot" Margin="0,0,8,8" />
+                <Button Text="Help Center" Clicked="OnHelpCenter" Margin="0,0,8,8" />
+                <Button Text="News" Clicked="OnNews" Margin="0,0,8,8" />
+                <Button Text="Track Event" Clicked="OnTrackEvent" Margin="0,0,8,8" />
+            </FlexLayout>
+            <Label x:Name="Status" TextColor="Gray" />
+        </VerticalStackLayout>
+
+        <WebView x:Name="Web" Grid.Row="1" />
+    </Grid>
+
+</ContentPage>
