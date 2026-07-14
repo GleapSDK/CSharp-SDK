@@ -60,6 +60,12 @@ public class GleapMessenger : Grid, IDisposable
     private GleapOutboundSurface? _banner;
     private GleapOutboundSurface? _modal;
 
+    // Held so Dispose can Gleap.RemoveListener them: the dispatcher removes by delegate reference,
+    // and these lambdas capture `this`, so leaving them registered leaks the disposed control.
+    private Action<object?>? _onWidgetClosed;
+    private Action<object?>? _onNotificationCountUpdated;
+    private Action<object?>? _onOutboundSent;
+
     /// <summary>Project SDK key. Set before the control loads (e.g. in the host's constructor).</summary>
     public string? SdkKey { get; set; }
 
@@ -327,9 +333,12 @@ public class GleapMessenger : Grid, IDisposable
             _backend = await GleapWebView2Host.AttachAsync(_webView, SdkKey!, endpoints).ConfigureAwait(true);
             ApplyLauncherStyle();
 
-            Gleap.RegisterListener("widgetClosed", _ => OnUi(HideMessenger));
-            Gleap.RegisterListener("notificationCountUpdated", count => OnUi(() => UpdateBadge(count)));
-            Gleap.RegisterListener("outboundSent", d => OnUi(() => OnOutbound(d)));
+            _onWidgetClosed = _ => OnUi(HideMessenger);
+            _onNotificationCountUpdated = count => OnUi(() => UpdateBadge(count));
+            _onOutboundSent = d => OnUi(() => OnOutbound(d));
+            Gleap.RegisterListener("widgetClosed", _onWidgetClosed);
+            Gleap.RegisterListener("notificationCountUpdated", _onNotificationCountUpdated);
+            Gleap.RegisterListener("outboundSent", _onOutboundSent);
 
             if (EnableOutboundPolling)
             {
@@ -555,6 +564,24 @@ public class GleapMessenger : Grid, IDisposable
             _pollTimer = null;
             _replayTimer?.Stop();
             _replayTimer = null;
+
+            // Unhook the facade listeners so the disposed control isn't kept alive by the backend.
+            if (_onWidgetClosed != null)
+            {
+                Gleap.RemoveListener("widgetClosed", _onWidgetClosed);
+                _onWidgetClosed = null;
+            }
+            if (_onNotificationCountUpdated != null)
+            {
+                Gleap.RemoveListener("notificationCountUpdated", _onNotificationCountUpdated);
+                _onNotificationCountUpdated = null;
+            }
+            if (_onOutboundSent != null)
+            {
+                Gleap.RemoveListener("outboundSent", _onOutboundSent);
+                _onOutboundSent = null;
+            }
+
             _banner?.Dispose();
             _modal?.Dispose();
             _webView.Dispose();
