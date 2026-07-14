@@ -101,7 +101,7 @@ native iOS/Android SDK source):
 | AI tools declaration (`SetAiTools`) | core done (`frontend-tool-execute` reply: follow-up) |
 | **Windows** (WPF/WebView2) | ✅ runs live — composition-hosted messenger + native launcher (styled from config); `-warnaserror` clean |
 | **.NET MAUI** (Android / iOS / Windows) | ✅ `MauiWebViewChannel` per platform + sample; **net10.0-windows compiles**; Android/iOS build+run need the platform SDKs (Android Studio / a Mac) |
-| **Unity** (UPM) | ✅ package + bundled Core DLLs + IL2CPP-safe `NewtonsoftJsonSerializer` (verified equivalent) + plugin-agnostic channel; final compile+run is verified on Unity import |
+| **Unity** (UPM) | ✅ package + bundled Core DLLs + IL2CPP-safe `NewtonsoftJsonSerializer` (honors the DTOs' System.Text.Json `[JsonPropertyName]` — e.g. the AI-tool `enum` key — now verified byte-identical to the STJ output via a serialization diff) + plugin-agnostic channel; the Unity-dependent runtime (PlayerPrefs/metadata marshalled onto the main-thread pump) is verified on Unity editor import |
 | In-app `notification` toasts, mobile activation (shake/screenshot), push, WebSocket, Unity WebGL (JS-SDK path) | not built (platform/runtime-dependent) |
 
 Design docs and per-feature implementation plans live under `docs/superpowers/`.

@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using System.Text.Json; // JsonElement — raw config/actions forwarded verbatim in config-update
 using GleapSDK.Serialization;
 using Newtonsoft.Json;
@@ -24,12 +25,34 @@ namespace GleapSDK.Unity
         {
             var settings = new JsonSerializerSettings
             {
-                ContractResolver = new CamelCasePropertyNamesContractResolver(),
+                ContractResolver = new GleapContractResolver(),
                 NullValueHandling = NullValueHandling.Ignore
             };
             settings.Converters.Add(new StringEnumConverter(new CamelCaseNamingStrategy()));
             settings.Converters.Add(new JsonElementConverter());
             return settings;
+        }
+
+        /// <summary>CamelCase resolver that also honours <c>System.Text.Json</c>'s
+        /// <see cref="System.Text.Json.Serialization.JsonPropertyNameAttribute"/>, which the DTOs use and
+        /// Newtonsoft ignores by default. Without this, <c>AIToolParameter.Enums</c>
+        /// (<c>[JsonPropertyName("enum")]</c>) would serialize as <c>"enums"</c> and the web widget would
+        /// not recognize the AI-tool parameter's allowed-values list.</summary>
+        private sealed class GleapContractResolver : CamelCasePropertyNamesContractResolver
+        {
+            // Fully-qualified return type: System.Text.Json also defines a JsonProperty, so the bare name
+            // is ambiguous once both namespaces are in scope (as they are on Unity too).
+            protected override Newtonsoft.Json.Serialization.JsonProperty CreateProperty(
+                MemberInfo member, MemberSerialization memberSerialization)
+            {
+                var property = base.CreateProperty(member, memberSerialization);
+                var stj = member.GetCustomAttribute<System.Text.Json.Serialization.JsonPropertyNameAttribute>();
+                if (stj != null && !string.IsNullOrEmpty(stj.Name))
+                {
+                    property.PropertyName = stj.Name;
+                }
+                return property;
+            }
         }
 
         public string Serialize(object value) => JsonConvert.SerializeObject(value, Settings);
