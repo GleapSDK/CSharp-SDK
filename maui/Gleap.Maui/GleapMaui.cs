@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using GleapSDK.Http;
 using GleapSDK.Serialization;
 using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Devices;
 
 namespace GleapSDK.Maui;
 
@@ -21,6 +22,7 @@ public static class GleapMaui
     {
         await channel.InitializeAsync().ConfigureAwait(true);
 
+        var (platform, deviceType) = ResolvePlatform();
         var backend = new ManagedBackend(new ManagedBackend.Dependencies
         {
             Http = new HttpTransport(),
@@ -28,7 +30,10 @@ public static class GleapMaui
             Store = new MauiKeyValueStore(),
             Channel = channel,
             Endpoints = GleapEndpoints.Default,
-            Metadata = new MauiMetadataProvider(SdkVersion)
+            Metadata = new MauiMetadataProvider(SdkVersion),
+            Platform = platform,
+            DeviceType = deviceType,
+            SdkVersion = SdkVersion
         });
 
         Gleap.UseBackend(backend);
@@ -38,6 +43,33 @@ public static class GleapMaui
         // Navigate only after the backend (WidgetBootstrapper) is listening for the widget's ping.
         channel.Navigate();
         return backend;
+    }
+
+    /// <summary>Maps the running MAUI platform to the <c>platform</c>/<c>type</c> values the Gleap API
+    /// expects (matching the native SDKs' lowercase ids), so a session is not misreported as
+    /// windows/desktop. Mobile targets report <c>"mobile"</c>; desktop targets report <c>"desktop"</c>.</summary>
+    private static (string Platform, string DeviceType) ResolvePlatform()
+    {
+        var p = DeviceInfo.Current.Platform;
+        if (p == DevicePlatform.Android)
+        {
+            return ("android", "mobile");
+        }
+        if (p == DevicePlatform.iOS)
+        {
+            return ("ios", "mobile");
+        }
+        if (p == DevicePlatform.MacCatalyst || p == DevicePlatform.macOS)
+        {
+            return ("macos", "desktop");
+        }
+        if (p == DevicePlatform.WinUI)
+        {
+            return ("windows", "desktop");
+        }
+        // Unknown/other (e.g. Tizen): lower-case the platform id, default to desktop.
+        var name = p.ToString();
+        return (string.IsNullOrEmpty(name) ? "windows" : name.ToLowerInvariant(), "desktop");
     }
 
     private static void OpenExternalUrl(string? url)
