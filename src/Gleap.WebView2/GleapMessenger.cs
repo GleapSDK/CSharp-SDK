@@ -39,7 +39,8 @@ public class GleapMessenger : Grid, IDisposable
     private const double SlideDistance = 44;
 
     private readonly Microsoft.Web.WebView2.Wpf.WebView2CompositionControl _webView;
-    private readonly Border _panelHost;
+    private readonly Grid _overlay;
+    private readonly Border _shadowLayer;
     private readonly TranslateTransform _panelSlide;
     private readonly Border _launcher;
     private readonly ScaleTransform _launcherScale;
@@ -89,21 +90,27 @@ public class GleapMessenger : Grid, IDisposable
         };
 
         _panelSlide = new TranslateTransform(0, SlideDistance);
-        _panelHost = new Border
+        // The shadow lives on its own rounded white layer (NOT the WebView2 host): a DropShadowEffect
+        // over a composition control samples the full rectangle and yields a square shadow, so we
+        // cast it from this plain rounded Border instead. The WebView (rounded clip) sits on top and
+        // covers it, leaving only the rounded glow bleeding out around the edges.
+        _shadowLayer = new Border
+        {
+            CornerRadius = new CornerRadius(CornerRadius),
+            Background = Brushes.White,
+            Effect = new DropShadowEffect { BlurRadius = 22, ShadowDepth = 0, Opacity = 0.20 }
+        };
+        _overlay = new Grid
         {
             Width = PanelWidth,
             Height = PanelHeight,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Bottom,
-            Margin = new Thickness(0, 0, 24, 84),   // sits above the launcher, JS-SDK style
-            CornerRadius = new CornerRadius(CornerRadius),
-            Background = Brushes.White,
+            Margin = new Thickness(0, 0, 28, 84),   // sits above the launcher; room for the glow
             Opacity = 0,
             IsHitTestVisible = false,
             RenderTransform = _panelSlide,
-            // Even (directionless) glow so it isn't clipped asymmetrically at the window edge.
-            Effect = new DropShadowEffect { BlurRadius = 24, ShadowDepth = 0, Opacity = 0.20 },
-            Child = _webView
+            Children = { _shadowLayer, _webView }
         };
 
         _chatIcon = MakeIcon(new Path
@@ -130,7 +137,7 @@ public class GleapMessenger : Grid, IDisposable
             Height = 52,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Bottom,
-            Margin = new Thickness(0, 0, 24, 24),
+            Margin = new Thickness(0, 0, 28, 24),
             Cursor = Cursors.Hand,
             Effect = new DropShadowEffect { BlurRadius = 14, ShadowDepth = 2, Opacity = 0.28 },
             RenderTransform = _launcherScale,
@@ -158,13 +165,13 @@ public class GleapMessenger : Grid, IDisposable
             Height = 20,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Bottom,
-            Margin = new Thickness(0, 0, 18, 54),
+            Margin = new Thickness(0, 0, 22, 54),
             Visibility = Visibility.Collapsed,
             Child = _badgeText,
             IsHitTestVisible = false
         };
 
-        Children.Add(_panelHost);
+        Children.Add(_overlay);
         Children.Add(_launcher);
         Children.Add(_badge);
 
@@ -237,7 +244,7 @@ public class GleapMessenger : Grid, IDisposable
 
         _isOpen = true;
         _badge.Visibility = Visibility.Collapsed;
-        _panelHost.IsHitTestVisible = true;
+        _overlay.IsHitTestVisible = true;
         AnimatePanel(open: true);
         CrossfadeLauncher(open: true);
         Gleap.Open();
@@ -251,7 +258,7 @@ public class GleapMessenger : Grid, IDisposable
             return;
         }
         _isOpen = false;
-        _panelHost.IsHitTestVisible = false;
+        _overlay.IsHitTestVisible = false;
         AnimatePanel(open: false);
         CrossfadeLauncher(open: false);
     }
@@ -297,7 +304,7 @@ public class GleapMessenger : Grid, IDisposable
     {
         var slide = MakeDouble(open ? SlideDistance : 0, open ? 0 : SlideDistance, open ? EasingMode.EaseOut : EasingMode.EaseIn);
         var fade = MakeDouble(open ? 0 : 1, open ? 1 : 0, EasingMode.EaseOut);
-        _panelHost.BeginAnimation(OpacityProperty, fade);
+        _overlay.BeginAnimation(OpacityProperty, fade);
         _panelSlide.BeginAnimation(TranslateTransform.YProperty, slide);
     }
 
@@ -360,11 +367,11 @@ public class GleapMessenger : Grid, IDisposable
         double available = ActualHeight > 0 ? ActualHeight - 84 /*launcher zone*/ - 24 /*top gap*/ : PanelHeight;
         double target = _contentHeight is { } c ? Math.Min(c, PanelHeight) : PanelHeight;
         double h = Math.Round(Math.Max(220, Math.Min(target, available)));
-        if (h == _panelHost.Height)
+        if (h == _overlay.Height)
         {
             return;
         }
-        _panelHost.Height = h;
+        _overlay.Height = h;
         _webView.Height = h;
         _webView.Clip = new RectangleGeometry(new Rect(0, 0, PanelWidth, h), CornerRadius, CornerRadius);
     }
