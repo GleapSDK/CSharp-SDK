@@ -89,6 +89,14 @@ public sealed class ManagedBackend : IGleapBackend
 
         _bridge.CollectTicketDataRequested += () =>
             _bridge.Send(new GleapBridgeMessage { Name = "collect-ticket-data", Data = _collector.BuildTicketData() });
+        // The widget can close itself (its own close control). Reflect that in our own
+        // opened-state so IsOpened()/the ping "opened" flag stay correct; do NOT echo a
+        // widget-status-update back — the widget has already closed.
+        _bridge.CloseWidgetRequested += () =>
+        {
+            _widgetOpen = false;
+            _events.Emit("widgetClosed");
+        };
         _bridge.SendFeedbackRequested += data => { LastFeedbackTask = HandleSendFeedbackAsync(data); };
         _bridge.FeedbackFlowStarted += _ => _events.Emit("feedbackFlowStarted");
         _bridge.CustomActionTriggered += (name, token) =>

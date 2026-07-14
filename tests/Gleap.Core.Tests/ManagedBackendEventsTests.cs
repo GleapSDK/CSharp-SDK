@@ -72,6 +72,23 @@ public class ManagedBackendEventsTests
     }
 
     [Fact]
+    public async Task CloseWidget_FromWidget_FiresWidgetClosedAndMarksNotOpened()
+    {
+        var (backend, ch, _) = await NewInitializedAsync();
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+        backend.Open();
+        Assert.True(backend.IsOpened());
+        var fired = false;
+        backend.RegisterListener("widgetClosed", _ => fired = true);
+
+        // The widget closes itself (user taps the widget's close control).
+        ch.SimulateIncoming("{\"name\":\"close-widget\"}");
+
+        Assert.True(fired);
+        Assert.False(backend.IsOpened());
+    }
+
+    [Fact]
     public async Task CustomAction_FiresWithName()
     {
         var (backend, ch, _) = await NewInitializedAsync();
