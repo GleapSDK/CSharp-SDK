@@ -1,4 +1,4 @@
-using GleapSDK.Extensions.Logging;
+﻿using GleapSDK.Extensions.Logging;
 using GleapLogLevel = GleapSDK.LogLevel;
 using MsLogLevel = Microsoft.Extensions.Logging.LogLevel;
 

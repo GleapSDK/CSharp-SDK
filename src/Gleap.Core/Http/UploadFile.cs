@@ -1,4 +1,4 @@
-namespace GleapSDK.Http;
+﻿namespace GleapSDK.Http;
 
 /// <summary>One file in a multipart upload: raw bytes + filename + MIME type.</summary>
 public sealed class UploadFile

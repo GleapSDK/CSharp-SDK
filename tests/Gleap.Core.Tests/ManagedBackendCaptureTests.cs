@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Gleap.Core.Tests.Fakes;
 using GleapSDK;
 using GleapSDK.Http;

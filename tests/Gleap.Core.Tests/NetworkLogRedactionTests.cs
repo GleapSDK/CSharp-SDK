@@ -1,4 +1,4 @@
-using GleapSDK.Collection;
+﻿using GleapSDK.Collection;
 using GleapSDK.Http;
 
 namespace Gleap.Core.Tests;
