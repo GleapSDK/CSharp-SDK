@@ -1,14 +1,11 @@
 using System;
 using System.Windows;
-using System.Windows.Threading;
-using GleapSDK.WebView2;
 
 namespace GleapSDK.Sample.Wpf;
 
 public partial class MainWindow : Window
 {
-    private bool _attached;
-    private DispatcherTimer? _outboundTimer;
+    private bool _initialized;
 
     public MainWindow()
     {
@@ -27,50 +24,48 @@ public partial class MainWindow : Window
 
         try
         {
-            StatusText.Text = "Attaching…";
-            await GleapWebView2Host.AttachAsync(WebView, sdkKey);
-            _attached = true;
-            StatusText.Text = "Attached. Click Open to show the widget.";
-            StartOutboundPolling();
+            StatusText.Text = "Initializing…";
+            Messenger.SdkKey = sdkKey;
+            await Messenger.InitializeAsync();
+            _initialized = true;
+            StatusText.Text = "Ready. Click the launcher (bottom-right) or Open to show the messenger.";
         }
         catch (Exception ex)
         {
-            StatusText.Text = "Attach failed: " + ex.Message;
-            MessageBox.Show(ex.ToString(), "Gleap attach failed");
+            StatusText.Text = "Init failed: " + ex.Message;
+            MessageBox.Show(ex.ToString(), "Gleap init failed");
         }
     }
 
-    private void OnOpen(object sender, RoutedEventArgs e) => Guarded(() => Gleap.Open());
-    private void OnClose(object sender, RoutedEventArgs e) => Guarded(() => Gleap.Close());
-    private void OnStartConversation(object sender, RoutedEventArgs e) => Guarded(() => Gleap.StartConversation());
-    private void OnStartBot(object sender, RoutedEventArgs e) => Guarded(() => Gleap.StartBot(""));
-    private void OnOpenHelpCenter(object sender, RoutedEventArgs e) => Guarded(() => Gleap.OpenHelpCenter());
-    private void OnOpenNews(object sender, RoutedEventArgs e) => Guarded(() => Gleap.OpenNews());
+    // Open/Close drive the overlay; the launcher button and the widget's own ✕ do the same via the control.
+    private void OnOpen(object sender, RoutedEventArgs e) => Guarded(() => Messenger.ShowMessenger());
+
+    private void OnClose(object sender, RoutedEventArgs e) => Guarded(() =>
+    {
+        Gleap.Close();
+        Messenger.HideMessenger();
+    });
+
+    // Navigation implies opening the messenger, matching the JS SDK.
+    private void OnStartConversation(object sender, RoutedEventArgs e) => GuardedNav(() => Gleap.StartConversation());
+    private void OnStartBot(object sender, RoutedEventArgs e) => GuardedNav(() => Gleap.StartBot(""));
+    private void OnOpenHelpCenter(object sender, RoutedEventArgs e) => GuardedNav(() => Gleap.OpenHelpCenter());
+    private void OnOpenNews(object sender, RoutedEventArgs e) => GuardedNav(() => Gleap.OpenNews());
+
     private void OnTrackEvent(object sender, RoutedEventArgs e) => Guarded(() => Gleap.TrackEvent("sample-button-clicked", null));
     private void OnSetCustomData(object sender, RoutedEventArgs e) => Guarded(() => Gleap.SetCustomData("plan", "pro"));
 
-    private void StartOutboundPolling()
+    private void GuardedNav(Action navigate) => Guarded(() =>
     {
-        _outboundTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-        _outboundTimer.Tick += async (_, _) =>
-        {
-            try
-            {
-                await Gleap.CheckOutboundAsync();
-            }
-            catch
-            {
-                // Polling failures are non-fatal.
-            }
-        };
-        _outboundTimer.Start();
-    }
+        Messenger.ShowMessenger();
+        navigate();
+    });
 
     private void Guarded(Action action)
     {
-        if (!_attached)
+        if (!_initialized)
         {
-            StatusText.Text = "Attach first.";
+            StatusText.Text = "Initialize first.";
             return;
         }
         try
