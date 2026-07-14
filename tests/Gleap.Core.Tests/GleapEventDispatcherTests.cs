@@ -40,4 +40,18 @@ public class GleapEventDispatcherTests
 
         Assert.Null(ex);
     }
+
+    [Fact]
+    public void Unregister_StopsDelivery()
+    {
+        var dispatcher = new GleapEventDispatcher();
+        var called = false;
+        void Handler(object? data) => called = true;
+        dispatcher.Register("x", Handler);
+
+        dispatcher.Unregister("x", Handler);
+        dispatcher.Emit("x", null);
+
+        Assert.False(called);
+    }
 }

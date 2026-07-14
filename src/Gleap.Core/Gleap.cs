@@ -23,6 +23,7 @@ public static class Gleap
         Backend.InitializeAsync(token, ct);
 
     public static void RegisterListener(string eventName, System.Action<object?> handler) => Backend.RegisterListener(eventName, handler);
+    public static void RemoveListener(string eventName, System.Action<object?> handler) => Backend.RemoveListener(eventName, handler);
     public static Task CheckOutboundAsync(CancellationToken ct = default) => Backend.PollOutboundOnceAsync(ct);
 
     public static void Open() => Backend.Open();

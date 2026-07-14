@@ -18,6 +18,17 @@ public sealed class GleapEventDispatcher
         handlers.Add(handler);
     }
 
+    /// <summary>Removes a previously registered handler for the given event, if present.
+    /// No-op when the event or handler is not registered — lets platform hosts (e.g.
+    /// <c>GleapMessenger.Dispose</c>) detach without tracking registration state themselves.</summary>
+    public void Unregister(string eventName, Action<object?> handler)
+    {
+        if (_listeners.TryGetValue(eventName, out var handlers))
+        {
+            handlers.Remove(handler);
+        }
+    }
+
     public void Emit(string eventName, object? data = null)
     {
         if (_listeners.TryGetValue(eventName, out var handlers))

@@ -90,6 +90,7 @@ public sealed class ManagedBackend : IGleapBackend
         "Gleap is not initialized. Call InitializeAsync before using the messenger.");
 
     public void RegisterListener(string eventName, System.Action<object?> handler) => _events.Register(eventName, handler);
+    public void RemoveListener(string eventName, System.Action<object?> handler) => _events.Unregister(eventName, handler);
 
     public async Task InitializeAsync(string token, CancellationToken ct)
     {
