@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -55,11 +56,11 @@ public class GleapMessenger : Grid, IDisposable
     /// <summary>Project SDK key. Set before the control loads (e.g. in the host's constructor).</summary>
     public string? SdkKey { get; set; }
 
-    /// <summary>Width of the messenger overlay panel (default 384).</summary>
-    public double PanelWidth { get; set; } = 384;
+    /// <summary>Width of the messenger overlay panel (default 380).</summary>
+    public double PanelWidth { get; set; } = 380;
 
-    /// <summary>Height of the messenger overlay panel (default 560).</summary>
-    public double PanelHeight { get; set; } = 560;
+    /// <summary>Height of the messenger overlay panel (default 512).</summary>
+    public double PanelHeight { get; set; } = 512;
 
     /// <summary>Launcher fill colour (default Gleap blue). Customize to match your brand.</summary>
     public Brush LauncherBackground { get; set; } = new SolidColorBrush(Color.FromRgb(0x48, 0x5B, 0xFF));
@@ -93,13 +94,14 @@ public class GleapMessenger : Grid, IDisposable
             Height = PanelHeight,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Bottom,
-            Margin = new Thickness(0, 0, 24, 96),   // sits above the launcher, JS-SDK style
+            Margin = new Thickness(0, 0, 24, 84),   // sits above the launcher, JS-SDK style
             CornerRadius = new CornerRadius(CornerRadius),
             Background = Brushes.White,
             Opacity = 0,
             IsHitTestVisible = false,
             RenderTransform = _panelSlide,
-            Effect = new DropShadowEffect { BlurRadius = 28, ShadowDepth = 6, Opacity = 0.22 },
+            // Even (directionless) glow so it isn't clipped asymmetrically at the window edge.
+            Effect = new DropShadowEffect { BlurRadius = 24, ShadowDepth = 0, Opacity = 0.20 },
             Child = _webView
         };
 
@@ -122,14 +124,14 @@ public class GleapMessenger : Grid, IDisposable
         _launcher = new Border
         {
             Background = LauncherBackground,
-            CornerRadius = new CornerRadius(30),
-            Width = 60,
-            Height = 60,
+            CornerRadius = new CornerRadius(26),
+            Width = 52,
+            Height = 52,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Bottom,
             Margin = new Thickness(0, 0, 24, 24),
             Cursor = Cursors.Hand,
-            Effect = new DropShadowEffect { BlurRadius = 16, ShadowDepth = 2, Opacity = 0.3 },
+            Effect = new DropShadowEffect { BlurRadius = 14, ShadowDepth = 2, Opacity = 0.28 },
             RenderTransform = _launcherScale,
             RenderTransformOrigin = new Point(0.5, 0.5),
             Child = new Grid { Children = { _chatIcon, _closeIcon } }
@@ -155,7 +157,7 @@ public class GleapMessenger : Grid, IDisposable
             Height = 20,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Bottom,
-            Margin = new Thickness(0, 0, 20, 66),
+            Margin = new Thickness(0, 0, 18, 54),
             Visibility = Visibility.Collapsed,
             Child = _badgeText,
             IsHitTestVisible = false
@@ -272,6 +274,7 @@ public class GleapMessenger : Grid, IDisposable
         {
             // Composition rendering + Opacity 0 keeps the preload invisible (no flash).
             _backend = await GleapWebView2Host.AttachAsync(_webView, SdkKey!, endpoints).ConfigureAwait(true);
+            ApplyLauncherStyle();
 
             Gleap.RegisterListener("widgetClosed", _ => OnUi(HideMessenger));
             Gleap.RegisterListener("notificationCountUpdated", count => OnUi(() => UpdateBadge(count)));
@@ -329,6 +332,26 @@ public class GleapMessenger : Grid, IDisposable
             }
         };
         _pollTimer.Start();
+    }
+
+    /// <summary>Recolours the launcher to the project's configured <c>buttonColor</c> so it matches the
+    /// widget style set in Gleap, instead of the built-in default.</summary>
+    private void ApplyLauncherStyle()
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(_backend!.FlowConfigJson);
+            if (doc.RootElement.TryGetProperty("buttonColor", out var bc)
+                && bc.ValueKind == JsonValueKind.String
+                && ColorConverter.ConvertFromString(bc.GetString()) is Color color)
+            {
+                _launcher.Background = new SolidColorBrush(color);
+            }
+        }
+        catch
+        {
+            // No / unparsable buttonColor — keep the default launcher colour.
+        }
     }
 
     private void UpdateBadge(object? count)

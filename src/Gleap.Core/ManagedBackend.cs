@@ -334,6 +334,11 @@ public sealed class ManagedBackend : IGleapBackend
     public bool IsUserIdentified() => _session.IsIdentified;
     public GleapUserProperty? GetIdentity() => _session.Identity;
 
+    /// <summary>The raw <c>flowConfig</c> JSON from <c>/config</c> (widget appearance: colors, logo, …),
+    /// or <c>"{}"</c> before initialization. Platform hosts use it to style native chrome such as the
+    /// launcher button to match the project's configured widget.</summary>
+    public string FlowConfigJson => _config?.FlowConfigJson ?? "{}";
+
     public void Log(string message, LogLevel level) => _consoleLog.Add(message, level);
     public void TrackEvent(string name, object? data) => _eventLog.Add(name, data);
     public void TrackPage(string pageName) => _eventLog.Add("pageView", new Dictionary<string, object> { ["page"] = pageName });
