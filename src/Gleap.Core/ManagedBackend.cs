@@ -11,6 +11,8 @@ using GleapSDK.Feedback;
 using GleapSDK.Http;
 using GleapSDK.Metadata;
 using GleapSDK.Models;
+using GleapSDK.Outbound;
+using GleapSDK.Realtime;
 using GleapSDK.Serialization;
 using GleapSDK.Session;
 using GleapSDK.Time;
@@ -29,6 +31,11 @@ public sealed class ManagedBackend : IGleapBackend
         public GleapEndpoints Endpoints { get; set; } = GleapEndpoints.Default;
         public IMetadataProvider Metadata { get; set; } = new DefaultMetadataProvider("NET", "0.1.0");
         public IScreenshotProvider? Screenshot { get; set; }
+
+        /// <summary>Optional real-time channel (WebSocket). When set, the backend receives outbound/unread
+        /// pushes instantly and marks its pings <c>ws:true</c> so the server doesn't also push over the
+        /// poll. When null (e.g. in tests), the backend relies on the outbound poll alone.</summary>
+        public IRealtimeChannel? Realtime { get; set; }
 
         /// <summary>Runtime identifier reported to the API as <c>platform</c>/<c>type</c> (e.g.
         /// <c>"windows"</c>, <c>"unity"</c>, <c>"android"</c>, <c>"ios"</c>). Platform hosts override
@@ -124,6 +131,15 @@ public sealed class ManagedBackend : IGleapBackend
 
         await _session.StartAsync(_language, _d.DeviceType, ct).ConfigureAwait(false);
         await _config.LoadAsync(_language, ct).ConfigureAwait(false);
+
+        // Real-time channel (optional): once the session exists, connect the WebSocket so outbound
+        // actions and the unread count arrive instantly instead of on the next poll tick.
+        if (_d.Realtime != null)
+        {
+            _d.Realtime.MessageReceived += OnRealtimeMessage;
+            _d.Realtime.Connect(BuildRealtimeUrl());
+        }
+
         _events.Emit("initialized");
     }
 
@@ -593,12 +609,21 @@ public sealed class ManagedBackend : IGleapBackend
         }
 
         var time = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var response = await _api.PingAsync(time, events, _widgetOpen, _session.GleapId, _session.GleapHash, ct)
+        var ws = _d.Realtime?.IsConnected == true;
+        var response = await _api.PingAsync(time, events, _widgetOpen, ws, _session.GleapId, _session.GleapHash, ct)
             .ConfigureAwait(false);
         // Only clear once the ping actually succeeded (an exception above leaves events
         // buffered so the next cycle retries them instead of losing them silently).
         _eventLog.Clear();
 
+        ProcessUpdate(response);
+    }
+
+    /// <summary>Dispatches an outbound update (from the poll response or a WebSocket <c>update</c> frame):
+    /// raises the unread count and each outbound action, and auto-starts survey/feedback-flow actions.
+    /// Banner/modal/notification actions are surfaced via <c>outboundSent</c> for the host to render.</summary>
+    private void ProcessUpdate(PingResponse response)
+    {
         _events.Emit("notificationCountUpdated", response.UnreadCount);
 
         foreach (var action in response.Actions)
@@ -607,7 +632,7 @@ public sealed class ManagedBackend : IGleapBackend
             {
                 ["actionType"] = action.ActionType,
                 ["outboundId"] = action.OutboundId,
-                // Raw action JSON so the platform host can answer banner-data / modal-data.
+                // Raw action JSON so the platform host can answer banner-data / modal-data / notification.
                 ["data"] = action.Data.ValueKind == JsonValueKind.Undefined ? null : action.Data.GetRawText()
             });
 
@@ -625,6 +650,41 @@ public sealed class ManagedBackend : IGleapBackend
             }
             // notification / banner / modal: surfaced via outboundSent; rendering is the platform host's job.
         }
+    }
+
+    /// <summary>Parses a WebSocket frame and dispatches <c>update</c> frames through <see cref="ProcessUpdate"/>.
+    /// Runs on the realtime channel's background thread; event handlers marshal to their own thread.</summary>
+    private void OnRealtimeMessage(string rawJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(rawJson);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return;
+            }
+            var name = root.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String
+                ? n.GetString() : null;
+            if (name == "update" && root.TryGetProperty("data", out var data))
+            {
+                ProcessUpdate(PingResponse.Parse(data));
+            }
+            // Other frames (e.g. "checklist") are rendered by the widget web app; no host action yet.
+        }
+        catch (JsonException)
+        {
+            // Ignore malformed / non-JSON frames (e.g. keepalive echoes).
+        }
+    }
+
+    /// <summary>Builds the realtime connection URL with the current session identity (matches the native
+    /// SDKs' query-param auth).</summary>
+    private string BuildRealtimeUrl()
+    {
+        static string Esc(string? s) => System.Uri.EscapeDataString(s ?? "");
+        return $"{_d.Endpoints.WsUrl}?gleapId={Esc(_session.GleapId)}&gleapHash={Esc(_session.GleapHash)}"
+            + $"&apiKey={Esc(_token)}&sdkVersion={Esc(_d.SdkVersion)}";
     }
 
     public void StartConversation(bool showBackButton) => Bridge.Send(WidgetCommands.StartConversation(showBackButton));
@@ -649,6 +709,7 @@ public sealed class ManagedBackend : IGleapBackend
     {
         await _session.IdentifyAsync(userId, properties ?? new GleapUserProperty(), userHash, ct).ConfigureAwait(false);
         _bootstrapper.SendSessionUpdate();
+        _d.Realtime?.Connect(BuildRealtimeUrl());   // reconnect with the identified session
     }
 
     public async Task UpdateContactAsync(GleapUserProperty properties, CancellationToken ct)
@@ -662,6 +723,7 @@ public sealed class ManagedBackend : IGleapBackend
         _session.ClearIdentity();
         await _session.StartAsync(_language, _d.DeviceType, ct).ConfigureAwait(false);
         _bootstrapper.SendSessionUpdate();
+        _d.Realtime?.Connect(BuildRealtimeUrl());   // reconnect with the fresh guest session
     }
 
     public bool IsUserIdentified() => _session.IsIdentified;

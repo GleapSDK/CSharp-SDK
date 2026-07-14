@@ -30,7 +30,7 @@ public class PlatformSeamTests
         t.Responses.Enqueue(new HttpResult(200, "{}"));
         var client = NewClient(t);
 
-        await client.PingAsync(1, Array.Empty<object?>(), false, "g1", "h1", CancellationToken.None);
+        await client.PingAsync(1, Array.Empty<object?>(), false, false, "g1", "h1", CancellationToken.None);
 
         Assert.Contains("\"type\":\"android\"", t.Calls[0].Body);
         Assert.Contains("\"sdkVersion\":\"1.2.3\"", t.Calls[0].Body);

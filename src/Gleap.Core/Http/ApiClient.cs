@@ -233,9 +233,11 @@ public sealed class ApiClient
         return res.Body;
     }
 
-    /// <summary>POST /sessions/ping. Flushes buffered events and returns outbound actions + unread count.</summary>
+    /// <summary>POST /sessions/ping. Flushes buffered events and returns outbound actions + unread count.
+    /// When <paramref name="ws"/> is true (a WebSocket is connected) the server suppresses outbound
+    /// pushes in the response, since they arrive over the socket — avoiding double dispatch.</summary>
     public async Task<PingResponse> PingAsync(
-        long time, IReadOnlyList<object?> events, bool opened,
+        long time, IReadOnlyList<object?> events, bool opened, bool ws,
         string? gleapId, string? gleapHash, CancellationToken ct)
     {
         var body = _json.Serialize(new Dictionary<string, object?>
@@ -243,7 +245,7 @@ public sealed class ApiClient
             ["time"] = time,
             ["events"] = events,
             ["opened"] = opened,
-            ["ws"] = false,
+            ["ws"] = ws,
             ["type"] = _platform,
             ["sdkVersion"] = _sdkVersion
         });
@@ -255,20 +257,6 @@ public sealed class ApiClient
         }
 
         using var doc = JsonDocument.Parse(res.Body);
-        var root = doc.RootElement;
-        var actions = new List<OutboundAction>();
-        if (root.TryGetProperty("a", out var arr) && arr.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var item in arr.EnumerateArray())
-            {
-                var actionType = item.TryGetProperty("actionType", out var at) && at.ValueKind == JsonValueKind.String
-                    ? at.GetString()! : "";
-                var outboundId = item.TryGetProperty("outbound", out var ob) && ob.ValueKind == JsonValueKind.String
-                    ? ob.GetString() : null;
-                actions.Add(new OutboundAction(actionType, outboundId, item.Clone()));
-            }
-        }
-        var unread = root.TryGetProperty("u", out var u) && u.ValueKind == JsonValueKind.Number ? u.GetInt32() : 0;
-        return new PingResponse(actions, unread);
+        return PingResponse.Parse(doc.RootElement);
     }
 }

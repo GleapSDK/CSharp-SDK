@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using GleapSDK.Http;
+using GleapSDK.Realtime;
 using GleapSDK.Serialization;
 
 namespace GleapSDK.WebView2;
@@ -33,7 +34,8 @@ public static class GleapWebView2Host
             Channel = channel,
             Endpoints = resolvedEndpoints,
             Metadata = new WindowsMetadataProvider(SdkVersion),
-            Screenshot = new WindowsScreenshotProvider()
+            Screenshot = new WindowsScreenshotProvider(),
+            Realtime = new GleapWebSocket()
         });
 
         Gleap.UseBackend(backend);

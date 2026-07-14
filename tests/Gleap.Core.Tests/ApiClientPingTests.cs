@@ -16,7 +16,7 @@ public class ApiClientPingTests
         t.Responses.Enqueue(new HttpResult(200, "{\"a\":[{\"actionType\":\"survey\",\"outbound\":\"ob1\"}],\"u\":2}"));
         var client = NewClient(t);
 
-        var r = await client.PingAsync(123, Array.Empty<object?>(), true, "g1", "h1", CancellationToken.None);
+        var r = await client.PingAsync(123, Array.Empty<object?>(), true, false, "g1", "h1", CancellationToken.None);
 
         var call = t.Calls[0];
         Assert.Equal("POST", call.Method);
@@ -35,9 +35,23 @@ public class ApiClientPingTests
         t.Responses.Enqueue(new HttpResult(200, "{}"));
         var client = NewClient(t);
 
-        var r = await client.PingAsync(123, Array.Empty<object?>(), true, "g1", "h1", CancellationToken.None);
+        var r = await client.PingAsync(123, Array.Empty<object?>(), true, false, "g1", "h1", CancellationToken.None);
 
         Assert.Empty(r.Actions);
         Assert.Equal(0, r.UnreadCount);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Ping_SerializesWsFlag(bool ws)
+    {
+        var t = new FakeHttpTransport();
+        t.Responses.Enqueue(new HttpResult(200, "{}"));
+        var client = NewClient(t);
+
+        await client.PingAsync(1, Array.Empty<object?>(), false, ws, "g1", "h1", CancellationToken.None);
+
+        Assert.Contains(ws ? "\"ws\":true" : "\"ws\":false", t.Calls[0].Body);
     }
 }
