@@ -89,6 +89,19 @@ public class ManagedBackendEventsTests
     }
 
     [Fact]
+    public async Task OpenUrl_EmitsOpenUrlEvent()
+    {
+        var (backend, ch, _) = await NewInitializedAsync();
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+        object? received = null;
+        backend.RegisterListener("openURL", u => received = u);
+
+        ch.SimulateIncoming("{\"name\":\"open-url\",\"data\":\"https://gleap.io/help/x\"}");
+
+        Assert.Equal("https://gleap.io/help/x", received);
+    }
+
+    [Fact]
     public async Task CustomAction_FiresWithName()
     {
         var (backend, ch, _) = await NewInitializedAsync();

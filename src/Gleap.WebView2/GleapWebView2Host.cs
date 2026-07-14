@@ -1,3 +1,5 @@
+using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using GleapSDK.Http;
@@ -34,11 +36,31 @@ public static class GleapWebView2Host
         });
 
         Gleap.UseBackend(backend);
+        // Open external links the widget requests (help articles, etc.) in the system browser.
+        backend.RegisterListener("openURL", url => OpenExternalUrl(url as string));
         await backend.InitializeAsync(sdkKey, CancellationToken.None).ConfigureAwait(true);
 
         // Navigate only after the backend (and its WidgetBootstrapper) is listening, so the
         // widget's ping is handled and answered with config-update/session-update.
         channel.Navigate(resolvedEndpoints.FrameUrl);
         return backend;
+    }
+
+    private static void OpenExternalUrl(string? url)
+    {
+        if (string.IsNullOrEmpty(url)
+            || !(url!.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                 || url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
+        {
+            return; // only launch web URLs, never arbitrary schemes/executables
+        }
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine("Gleap: failed to open URL: " + ex.Message);
+        }
     }
 }
