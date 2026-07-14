@@ -62,11 +62,11 @@ public class GleapMessenger : Grid, IDisposable
     /// <summary>Project SDK key. Set before the control loads (e.g. in the host's constructor).</summary>
     public string? SdkKey { get; set; }
 
-    /// <summary>Width of the messenger overlay panel (default 380).</summary>
-    public double PanelWidth { get; set; } = 380;
+    /// <summary>Width of the messenger overlay panel (default 400).</summary>
+    public double PanelWidth { get; set; } = 400;
 
-    /// <summary>Height of the messenger overlay panel (default 512).</summary>
-    public double PanelHeight { get; set; } = 512;
+    /// <summary>Height of the messenger overlay panel (default 680; clamped to the window).</summary>
+    public double PanelHeight { get; set; } = 680;
 
     /// <summary>Launcher fill colour (default Gleap blue). Customize to match your brand.</summary>
     public Brush LauncherBackground { get; set; } = new SolidColorBrush(Color.FromRgb(0x48, 0x5B, 0xFF));
