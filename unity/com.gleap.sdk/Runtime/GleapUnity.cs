@@ -17,15 +17,16 @@ namespace GleapSDK.Unity
 
         /// <summary>
         /// Wires the Gleap facade to a Unity-hosted WebView channel, then initializes the session/config.
-        /// After this returns, navigate the channel's WebView to <c>GleapEndpoints.Default.FrameUrl</c>
-        /// (the channel implementation typically does this in its own setup).
+        /// Defaults to the IL2CPP-safe <see cref="NewtonsoftJsonSerializer"/>; pass a different
+        /// <see cref="IJsonSerializer"/> to override (e.g. <c>SystemTextJsonSerializer</c> on Mono builds).
         /// </summary>
-        public static async Task<ManagedBackend> AttachAsync(IWebViewChannel channel, string sdkKey)
+        public static async Task<ManagedBackend> AttachAsync(
+            IWebViewChannel channel, string sdkKey, IJsonSerializer? json = null)
         {
             var backend = new ManagedBackend(new ManagedBackend.Dependencies
             {
                 Http = new HttpTransport(),
-                Json = new SystemTextJsonSerializer(),
+                Json = json ?? new NewtonsoftJsonSerializer(),
                 Store = new UnityKeyValueStore(),
                 Channel = channel,
                 Endpoints = GleapEndpoints.Default,

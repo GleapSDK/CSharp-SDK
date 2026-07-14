@@ -4,45 +4,57 @@ Unity binding that reuses the platform-agnostic **`Gleap.Core`** engine. Unity s
 (`PlayerPrefs`), device metadata (`SystemInfo`), and console-log capture; you supply a WebView channel
 that renders the widget.
 
-> **Status: authored, NOT yet compiled/verified in a Unity project.** Verify + adjust on first import.
+> **Status: authored; the JSON serializer is verified, the rest is verify-on-import** (needs a Unity
+> project + a WebView plugin). `Gleap.Core.dll` and its dependencies are already bundled in
+> `Runtime/Plugins/`, and `NewtonsoftJsonSerializer` is verified to produce output identical to the
+> engine's default serializer.
 
 ## Install
-1. Build `Gleap.Core` for `netstandard2.0`: `dotnet build src/Gleap.Core -c Release`.
-2. Copy `src/Gleap.Core/bin/Release/netstandard2.0/Gleap.Core.dll` **and its dependency**
-   `System.Text.Json.dll` (+ its transitive deps) into `unity/com.gleap.sdk/Runtime/Plugins/`.
-   (The `.asmdef` already lists `Gleap.Core.dll` as a precompiled reference.)
-3. Add the package to a Unity project (Package Manager → Add package from disk → `com.gleap.sdk/package.json`),
-   or copy it under `Assets/`.
+1. `Gleap.Core.dll` **and its dependencies are already in `Runtime/Plugins/`** (built for
+   `netstandard2.0`). If you change `Gleap.Core`, rebuild and recopy:
+   `dotnet publish src/Gleap.Core -c Release -o <tmp>` then copy the `*.dll` into `Runtime/Plugins/`.
+2. Add the package (Package Manager → *Add package from disk* → `com.gleap.sdk/package.json`), or copy
+   it under `Assets/`. It depends on `com.unity.nuget.newtonsoft-json` (declared in `package.json`).
+3. On first import, if Unity reports **duplicate assemblies** for framework facades it already ships
+   (`System.Buffers`, `System.Memory`, `System.Runtime.CompilerServices.Unsafe`, `System.Numerics.Vectors`,
+   `System.Threading.Tasks.Extensions`), delete those specific DLLs from `Runtime/Plugins/`. Keep
+   `Gleap.Core.dll`, `System.Text.Json.dll`, `System.Text.Encodings.Web.dll`,
+   `Microsoft.Bcl.AsyncInterfaces.dll`, `System.IO.Pipelines.dll`.
 
 ## Use
 ```csharp
 using GleapSDK;
 using GleapSDK.Unity;
 
-// `channel` is your IWebViewChannel implementation (see "WebView" below).
-await GleapUnity.AttachAsync(channel, "YOUR_SDK_KEY");
+// Bring your own WebView (see below); route its page->native messages into the channel.
+var channel = new GleapUnityWebViewChannel(js => myWebView.ExecuteJavaScript(js));
+await GleapUnity.AttachAsync(channel, "YOUR_SDK_KEY"); // IL2CPP-safe Newtonsoft serializer by default
 Gleap.Open();
 // Optional: add GleapUnityLogHook to a persistent GameObject to capture Debug.Log output.
 ```
 
 ## WebView (the platform-specific piece you must provide)
-Unity has no built-in WebView, so you implement `GleapSDK.Bridge.IWebViewChannel` against your chosen
-WebView solution and load `GleapEndpoints.Default.FrameUrl` (`https://messenger-app.gleap.io/appnew`).
-The channel must, exactly like the WPF `WebView2Channel`:
-- inject, before page load, the shim `window.GleapJSBridge = { gleapCallback: function (s) { <post s to native> } }`;
-- forward page→native messages (the `s` string) by raising `MessageReceived`;
-- implement `ExecuteJavaScript` by running the script in the page (host→widget: `window.sendMessage({...})`).
+Unity has no built-in WebView. Use **`GleapUnityWebViewChannel`** (plugin-agnostic) and load
+`GleapEndpoints.Default.FrameUrl` (`https://messenger-app.gleap.io/appnew`):
+- construct it with a delegate that runs a script in your WebView (host→widget: `window.sendMessage({...})`);
+- inject `GleapUnityWebViewChannel.BridgeShim` before page load, wired so the widget's
+  `GleapJSBridge.gleapCallback(jsonString)` calls the channel's `ReceiveFromWidget(json)`.
 
-Options: a commercial plugin (Vuplex / 3D WebView) for standalone + mobile; a `.jslib` bridge for WebGL
-(where you may instead front the existing Gleap JS SDK). Native iOS/Android WebView wrapping is the
-alternative "wrap-native" path from the design spec.
+Options:
+- **Standalone / mobile:** a commercial plugin (Vuplex / 3D WebView) — wire its `ExecuteJavaScript` and its
+  page→native message event to the channel.
+- **WebGL:** the `/appnew` frame is a cross-origin iframe you can't inject into, and the wrapper doesn't
+  `postMessage` to the parent — so on WebGL front the existing **Gleap JS SDK** (`window.Gleap.initialize`)
+  from a `.jslib` instead of using this managed channel. (Separate path; not included here.)
 
-## Known risks / verify-first
-- **System.Text.Json under IL2CPP**: reflection-based (de)serialization can fail under IL2CPP/AOT. The
-  `IJsonSerializer` seam exists precisely so you can swap in a Newtonsoft-based implementation if needed —
-  build a `NewtonsoftJsonSerializer : IJsonSerializer` and pass it via `ManagedBackend.Dependencies.Json`.
-- **Nullable annotations**: this package assumes Unity's default (nullable disabled); `Gleap.Core.dll` is
-  compiled with nullable enabled, which is compatible at the binary level.
-- **WebGL/consoles**: no WebView → use the JS-SDK/jslib path (WebGL) or treat as unsupported (consoles).
-- DLL dependency resolution in Unity (System.Text.Json + System.Runtime.CompilerServices.Unsafe etc.) may
-  need the full transitive DLL set in `Plugins/`; the first import will surface any missing ones.
+## Notes / verify-first
+- **JSON / IL2CPP:** `GleapUnity` defaults to `NewtonsoftJsonSerializer` (Newtonsoft's reflection is
+  IL2CPP-friendly; System.Text.Json's serializer can be stripped/broken under AOT). It is verified to
+  emit the same wire shape as `SystemTextJsonSerializer` (camelCase, null-omission on POCO props, enums as
+  camelCase strings, raw pass-through of the config `JsonElement`). `Gleap.Core` still uses
+  `System.Text.Json` internally for DOM parsing (`JsonDocument`, reflection-free) — keep that DLL. Pass a
+  different `IJsonSerializer` to `AttachAsync` to override.
+- **Nullable:** the package assumes Unity's default (nullable disabled); `Gleap.Core.dll` is compiled with
+  nullable enabled, which is binary-compatible.
+- The `.asmdef` lists `Gleap.Core.dll`, `System.Text.Json.dll`, `Newtonsoft.Json.dll` as precompiled
+  references (with `overrideReferences`).
