@@ -4,11 +4,14 @@ Cross-platform C# SDK for [Gleap](https://gleap.io) — customer support, in-app
 reporting, feature requests, surveys and more — for **Unity**, **.NET MAUI**, and **Windows
 Desktop (WPF/WebView2)**.
 
-> **Status: early / pre-release.** The platform-agnostic core is implemented and unit-tested
-> (121 tests, `-warnaserror` clean), but **nothing has been validated against the live Gleap
-> service or widget yet**, and the platform bindings have not been compiled on their target
-> runtimes. Server/message contracts are reverse-engineered from the native iOS/Android/JS SDKs.
-> See [Status & parity](#status--parity) for the honest breakdown. Not yet production-ready.
+> **Status: early access.** The platform-agnostic core is implemented, unit-tested
+> (128 tests, `-warnaserror` clean), and — the important part — **validated live against the real
+> Gleap server and web widget**: the bridge handshake, `config`/`session`, messenger navigation,
+> feedback submit (`/bugs/v2`), and the banner/modal outbound protocol were all confirmed against the
+> live services. The host-side behaviour now **mirrors the native iOS/Android SDKs** (studied from
+> their source), not just inference. Windows (WPF/WebView2) renders the live messenger natively; the
+> MAUI and Unity bindings compile (their mobile/WebGL targets need the platform SDKs to build + run on
+> a device). See [Status & parity](#status--parity). Past "does it work", not yet a 1.0.
 
 ## How it works
 
@@ -30,11 +33,12 @@ Gleap  (public facade — identical API everywhere)
 ## Repository layout
 
 ```
-src/Gleap.Core/             .NET Standard 2.0 engine - the reusable heart (unit-tested)
-src/Gleap.WebView2/         Windows Desktop binding (WebView2) - net8.0-windows
-examples/Gleap.Sample.Wpf/  WPF sample app (live test harness)
-maui/Gleap.Maui/            .NET MAUI binding (reuses Gleap.Core)
-unity/com.gleap.sdk/        Unity UPM package (reuses Gleap.Core)
+src/Gleap.Core/              .NET Standard 2.0 engine - the reusable heart (unit-tested)
+src/Gleap.WebView2/         Windows Desktop binding (WebView2) - net8.0-windows10.0.19041.0
+examples/Gleap.Sample.Wpf/  WPF sample: a floating launcher + messenger overlay (GleapMessenger)
+maui/Gleap.Maui/            .NET MAUI binding (reuses Gleap.Core) - net10.0-*
+examples/Gleap.Sample.Maui/ MAUI sample app
+unity/com.gleap.sdk/        Unity UPM package (reuses Gleap.Core; Core DLLs bundled)
 tests/Gleap.Core.Tests/     xUnit tests for the core
 docs/                       design specs + implementation plans (docs/superpowers)
 
@@ -44,10 +48,12 @@ Gleap.Windows.sln   Core + WebView2 + WPF sample - Windows only
 
 ## Build & test (core)
 
-Requires the **.NET 8 SDK**.
+Requires the **.NET 8 SDK** (the repo also builds on the .NET 10 SDK). The WPF sample additionally
+needs the **.NET 8 Desktop Runtime**; the MAUI binding needs the **`maui` workload**
+(`dotnet workload install maui`).
 
 ```bash
-dotnet test Gleap.sln                   # build + run the core tests
+dotnet test Gleap.sln                   # build + run the core tests (128)
 dotnet build Gleap.sln -warnaserror     # quality gate (0 warnings)
 dotnet format Gleap.sln --verify-no-changes
 ```
@@ -64,29 +70,39 @@ Unity and MAUI have their own READMEs
 using GleapSDK;
 using GleapSDK.WebView2;
 
-// `WebView` is a Microsoft.Web.WebView2.Wpf.WebView2 control in your window.
-await GleapWebView2Host.AttachAsync(WebView, "YOUR_SDK_KEY");
-Gleap.Open();
+// Drop the launcher control into your window: it floats a button (styled from your project config)
+// that slides the messenger in as an overlay and back, like the web SDK. Session/config load lazily.
+var messenger = new GleapMessenger { SdkKey = "YOUR_SDK_KEY" };
+rootGrid.Children.Add(messenger);
+
+// Drive it from anywhere via the stable facade:
 Gleap.StartBot("");                     // or StartConversation / OpenHelpCenter / OpenNews / ShowSurvey
 await Gleap.IdentifyContactAsync("user-123", new GleapSDK.Models.GleapUserProperty { Email = "a@b.c" });
 Gleap.TrackEvent("checkout_completed");
 ```
 
+(For full control you can instead host a `WebView2` yourself and call
+`GleapWebView2Host.AttachAsync(webView, "YOUR_SDK_KEY")`.)
+
 ## Status & parity
 
-Unit-verified against fakes is not the same as validated live. Honest state:
+Honest state (✅ = done + verified where noted; the host-side behaviour was checked against the
+native iOS/Android SDK source):
 
 | Capability | State |
 |---|---|
-| Messenger / Bot / AI chat / Help Center / News / Checklists / Feature Requests / Surveys / AskAI / Classic Forms | core done, not live-tested |
-| Identify / updateContact / clearIdentity, events, logs, custom data, ticket attributes, tags | core done |
-| Feedback submit (`/bugs/v2`) + silent crash + attachments + screenshot/replay in payload | core done (contract inferred) |
-| Callbacks (`RegisterListener`), config setters (language, prefill, logging toggles, ...) | core done |
-| Outbound polling (`/sessions/ping`, notification count, auto survey/feedback-flow) | core done; timer wired in the WPF sample |
-| AI tools declaration (`SetAiTools`) | core done (execute-reply round-trip: follow-up) |
-| Screenshot / replay capture | Windows done (WPF); Unity/MAUI providers: follow-up |
-| Windows / Unity / MAUI packages | authored, NOT yet compiled on target runtimes |
-| Banner/Modal outbound rendering, Unity/MAUI WebView channels, mobile activation (shake/screenshot), push, WebSocket | not built (runtime-dependent - next after first live validation) |
+| Messenger / Bot / AI chat / Help Center / News / Surveys / Classic Forms | ✅ **live-validated** — handshake, `config`/`session`, and navigation confirmed against the real `messenger-app.gleap.io` widget; renders natively in the WPF app |
+| Identify / updateContact / clearIdentity, events, logs, custom data, ticket attributes, tags | ✅ core done |
+| Feedback submit (`/bugs/v2`) + attachments + replay | ✅ **`/bugs/v2` confirmed live** (HTTP 201) |
+| Interactive screenshot (capture → annotate in-widget → attach) | ✅ wired to iOS parity (`screenshot-update` / `screenshot-updated` / `cleanup-drawings`) |
+| Silent crash report; callbacks (`RegisterListener`); config setters; `open-url` (system browser) | ✅ done |
+| Outbound polling (`/sessions/ping`, unread count, auto survey/feedback-flow) | ✅ core done + auto-polled by the Windows launcher |
+| Outbound **Banner + Modal** rendering | ✅ Windows host built to the native contract; the `appMessage` / `banner-data` / `modal-data` protocol **validated live** against `outboundmedia.gleap.io` (end-to-end with a real configured outbound: pending) |
+| AI tools declaration (`SetAiTools`) | core done (`frontend-tool-execute` reply: follow-up) |
+| **Windows** (WPF/WebView2) | ✅ runs live — composition-hosted messenger + native launcher (styled from config); `-warnaserror` clean |
+| **.NET MAUI** (Android / iOS / Windows) | ✅ `MauiWebViewChannel` per platform + sample; **net10.0-windows compiles**; Android/iOS build+run need the platform SDKs (Android Studio / a Mac) |
+| **Unity** (UPM) | ✅ package + bundled Core DLLs + IL2CPP-safe `NewtonsoftJsonSerializer` (verified equivalent) + plugin-agnostic channel; final compile+run is verified on Unity import |
+| In-app `notification` toasts, mobile activation (shake/screenshot), push, WebSocket, Unity WebGL (JS-SDK path) | not built (platform/runtime-dependent) |
 
 Design docs and per-feature implementation plans live under `docs/superpowers/`.
 
