@@ -32,9 +32,9 @@ public class GleapUserPropertyTests
     [Fact]
     public void Enums_HaveParityMembers()
     {
-        Assert.Equal(3, System.Enum.GetValues(typeof(Severity)).Length);
-        Assert.Equal(3, System.Enum.GetValues(typeof(LogLevel)).Length);
-        Assert.Equal(2, System.Enum.GetValues(typeof(ActivationMethod)).Length);
-        Assert.Equal(2, System.Enum.GetValues(typeof(SurveyFormat)).Length);
+        Assert.Equal(3, System.Enum.GetValues<Severity>().Length);
+        Assert.Equal(3, System.Enum.GetValues<LogLevel>().Length);
+        Assert.Equal(2, System.Enum.GetValues<ActivationMethod>().Length);
+        Assert.Equal(2, System.Enum.GetValues<SurveyFormat>().Length);
     }
 }

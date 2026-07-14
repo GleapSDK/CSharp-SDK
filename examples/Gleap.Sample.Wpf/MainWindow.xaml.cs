@@ -1,7 +1,6 @@
 using System;
 using System.Windows;
 using System.Windows.Threading;
-using GleapSDK;
 using GleapSDK.WebView2;
 
 namespace GleapSDK.Sample.Wpf;
