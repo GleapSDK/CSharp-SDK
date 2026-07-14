@@ -123,4 +123,34 @@ public class ManagedBackendCaptureTests
         Assert.Contains("\"replay\"", bugCall.Body);
         Assert.Contains("FRAME1", bugCall.Body);
     }
+
+    // A canned inner handler so the network-logging test never touches the real network.
+    private sealed class StubHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromResult(new HttpResponseMessage { Content = new StringContent("{\"ok\":true}") });
+    }
+
+    [Fact]
+    public async Task NetworkLoggingHandler_CapturesRequests_OntoTickets()
+    {
+        var (backend, ch, http) = NewInitialized();
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+        http.Responses.Enqueue(new HttpResult(200, "{\"shareToken\":\"st1\"}"));
+
+        // Route an app HttpClient through the handler the backend hands out.
+        using (var client = new HttpClient(backend.CreateNetworkLoggingHandler(new StubHandler())))
+        {
+            await client.GetAsync("https://example.com/api/widgets");
+        }
+
+        ch.SimulateIncoming("{\"name\":\"send-feedback\",\"data\":{\"formData\":{\"description\":\"boom\"},\"action\":{\"feedbackType\":\"BUG\"}}}");
+        await backend.LastFeedbackTask!;
+
+        // The captured request rides along in networkLogs on the submitted ticket.
+        var bugCall = Assert.Single(http.Calls, c => c.Url == "https://api.gleap.io/bugs/v2");
+        Assert.Contains("networkLogs", bugCall.Body);
+        Assert.Contains("example.com/api/widgets", bugCall.Body);
+        Assert.Contains("GET", bugCall.Body);
+    }
 }

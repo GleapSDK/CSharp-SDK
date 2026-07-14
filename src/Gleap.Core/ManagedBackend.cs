@@ -32,6 +32,7 @@ public sealed class ManagedBackend : IGleapBackend
     }
 
     private readonly Dependencies _d;
+    private readonly SystemClock _clock;
     private WebViewBridge _bridge = null!;
     private ApiClient _api = null!;
     private SessionManager _session = null!;
@@ -63,9 +64,9 @@ public sealed class ManagedBackend : IGleapBackend
     public ManagedBackend(Dependencies dependencies)
     {
         _d = dependencies;
-        var clock = new SystemClock(); // concrete local avoids CA1859 (interface-typed local)
-        _consoleLog = new ConsoleLogBuffer(clock, capacity: 100);
-        _eventLog = new EventBuffer(clock, capacity: 100);
+        _clock = new SystemClock(); // concrete field avoids CA1859 (interface-typed local)
+        _consoleLog = new ConsoleLogBuffer(_clock, capacity: 100);
+        _eventLog = new EventBuffer(_clock, capacity: 100);
         _networkLog = new NetworkLogBuffer(capacity: 20);
         _collector = new SessionDataCollector(
             _consoleLog, _eventLog, _networkLog,
@@ -444,6 +445,20 @@ public sealed class ManagedBackend : IGleapBackend
     public void RemoveAllAttachments() => _attachments.Clear();
     public void SetNetworkLogsBlacklist(string[] blacklist) => _networkLog.SetBlacklist(blacklist);
     public void SetNetworkLogPropsToIgnore(string[] propsToIgnore) => _networkLog.SetPropsToIgnore(propsToIgnore);
+
+    /// <summary>
+    /// Returns a <see cref="System.Net.Http.DelegatingHandler"/> that records outbound HTTP into the
+    /// Gleap network log so it appears on submitted tickets. Route your app's HttpClient through it —
+    /// <c>new HttpClient(gleap.CreateNetworkLoggingHandler())</c>, or pass it to
+    /// <c>IHttpClientBuilder.AddHttpMessageHandler</c>. Managed .NET has no global HTTP interception,
+    /// so only traffic sent through this handler is captured (the native SDKs capture automatically).
+    /// </summary>
+    public System.Net.Http.DelegatingHandler CreateNetworkLoggingHandler(
+        System.Net.Http.HttpMessageHandler? innerHandler = null)
+        => new GleapHttpHandler(_networkLog, _clock)
+        {
+            InnerHandler = innerHandler ?? new System.Net.Http.HttpClientHandler()
+        };
 
     public void SetLanguage(string language) => _language = language;
     public bool IsOpened() => _widgetOpen;
