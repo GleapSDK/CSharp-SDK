@@ -51,6 +51,7 @@ public class GleapMessenger : Grid, IDisposable
     private readonly Border _badge;
     private readonly TextBlock _badgeText;
     private DispatcherTimer? _pollTimer;
+    private DispatcherTimer? _replayTimer;
     private ManagedBackend? _backend;
     private bool _initializing;
     private bool _isOpen;
@@ -335,6 +336,8 @@ public class GleapMessenger : Grid, IDisposable
                 StartPolling();
             }
 
+            StartReplayCaptureIfEnabled();
+
             Ready?.Invoke(this, EventArgs.Empty);
         }
         finally
@@ -385,6 +388,32 @@ public class GleapMessenger : Grid, IDisposable
             }
         };
         _pollTimer.Start();
+    }
+
+    /// <summary>Starts the session-replay capture timer when the project enabled replays (flowConfig
+    /// <c>enableReplays</c>/<c>replaysInterval</c>). Each tick captures one app frame into the replay ring;
+    /// the frames are uploaded and referenced by URL on the next submitted report. Mirrors the native SDKs,
+    /// which only run the replay timer when replays are turned on — otherwise this is a no-op.</summary>
+    private void StartReplayCaptureIfEnabled()
+    {
+        var intervalMs = _backend?.ReplayIntervalMs;
+        if (intervalMs == null)
+        {
+            return;
+        }
+        _replayTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(intervalMs.Value) };
+        _replayTimer.Tick += async (_, _) =>
+        {
+            try
+            {
+                await _backend!.CaptureReplayFrameAsync().ConfigureAwait(true);
+            }
+            catch
+            {
+                // Replay capture failures are non-fatal (transient render/capture errors).
+            }
+        };
+        _replayTimer.Start();
     }
 
     /// <summary>Keeps the messenger at its fixed <see cref="PanelHeight"/> (it scrolls internally, like the
@@ -524,6 +553,8 @@ public class GleapMessenger : Grid, IDisposable
         {
             _pollTimer?.Stop();
             _pollTimer = null;
+            _replayTimer?.Stop();
+            _replayTimer = null;
             _banner?.Dispose();
             _modal?.Dispose();
             _webView.Dispose();

@@ -1,11 +1,21 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using GleapSDK.Feedback;
-using GleapSDK.Models;
 
 namespace Gleap.Core.Tests;
 
 public class FeedbackAssemblerAttachmentsTests
 {
+    // Attachments reach the assembler already uploaded — as {url, name, type} entries, never inline data.
+    private static IReadOnlyList<IReadOnlyDictionary<string, object?>> Uploaded() => new IReadOnlyDictionary<string, object?>[]
+    {
+        new Dictionary<string, object?>
+        {
+            ["url"] = "https://uploads.gleap.io/a.txt",
+            ["name"] = "a.txt",
+            ["type"] = "text/plain"
+        }
+    };
+
     [Fact]
     public void Build_IncludesAttachments_WhenNotExcluded()
     {
@@ -16,11 +26,13 @@ public class FeedbackAssemblerAttachmentsTests
             null,
             false,
             excludeKeys: new HashSet<string>(),
-            attachments: new[] { new GleapAttachment { Base64File = "Zm9v", FileName = "a.txt" } });
+            attachments: Uploaded());
 
-        var attachments = Assert.IsAssignableFrom<System.Collections.Generic.IReadOnlyList<GleapAttachment>>(result["attachments"]);
+        var attachments = Assert.IsAssignableFrom<IReadOnlyList<IReadOnlyDictionary<string, object?>>>(result["attachments"]);
         Assert.Single(attachments);
-        Assert.Contains("a.txt", JsonSerializer.Serialize(attachments));
+        var serialized = JsonSerializer.Serialize(attachments);
+        Assert.Contains("a.txt", serialized);
+        Assert.Contains("uploads.gleap.io/a.txt", serialized);
     }
 
     [Fact]
@@ -33,7 +45,7 @@ public class FeedbackAssemblerAttachmentsTests
             null,
             false,
             excludeKeys: new HashSet<string> { "attachments" },
-            attachments: new[] { new GleapAttachment { Base64File = "Zm9v", FileName = "a.txt" } });
+            attachments: Uploaded());
 
         Assert.False(result.ContainsKey("attachments"));
     }

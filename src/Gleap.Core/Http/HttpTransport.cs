@@ -52,4 +52,28 @@ public sealed class HttpTransport : IHttpTransport
         var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
         return new HttpResult((int)resp.StatusCode, body);
     }
+
+    public async Task<HttpResult> UploadManyAsync(
+        string url, IReadOnlyList<UploadFile> files,
+        IReadOnlyDictionary<string, string> headers, CancellationToken ct)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Post, url);
+        using var form = new MultipartFormDataContent("BBBOUNDARY");
+        foreach (var file in files)
+        {
+            var fileContent = new ByteArrayContent(file.Bytes);
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+            form.Add(fileContent, "file", file.FileName);
+        }
+        req.Content = form;
+
+        foreach (var kv in headers)
+        {
+            req.Headers.TryAddWithoutValidation(kv.Key, kv.Value);
+        }
+
+        using var resp = await _http.SendAsync(req, ct).ConfigureAwait(false);
+        var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+        return new HttpResult((int)resp.StatusCode, body);
+    }
 }

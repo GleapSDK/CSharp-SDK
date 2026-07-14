@@ -109,19 +109,46 @@ public class ManagedBackendCaptureTests
     }
 
     [Fact]
-    public async Task AddReplayFrame_IncludesReplay()
+    public async Task AddReplayFrame_UploadsFrames_AndReferencesThemByUrl()
     {
         var (backend, ch, http) = NewInitialized();
         ch.SimulateIncoming("{\"name\":\"ping\"}");
         http.Responses.Enqueue(new HttpResult(200, "{\"shareToken\":\"st1\"}"));
 
-        backend.AddReplayFrame("FRAME1");
+        backend.AddReplayFrame(DataUri("FRAMEBYTES"));
         ch.SimulateIncoming("{\"name\":\"send-feedback\",\"data\":{\"formData\":{\"description\":\"boom\"},\"action\":{\"feedbackType\":\"BUG\"}}}");
         await backend.LastFeedbackTask!;
 
+        // Frames are uploaded to /uploads/sdksteps and referenced by URL in replay.frames — not inline.
+        var upload = Assert.Single(http.MultiUploads, u => u.Url == "https://api.gleap.io/uploads/sdksteps");
+        Assert.Single(upload.Files);
         var bugCall = Assert.Single(http.Calls, c => c.Url == "https://api.gleap.io/bugs/v2");
         Assert.Contains("\"replay\"", bugCall.Body);
-        Assert.Contains("FRAME1", bugCall.Body);
+        Assert.Contains("\"frames\"", bugCall.Body);
+        Assert.Contains("uploads.gleap.io/u0.png", bugCall.Body);   // the fake upload's returned URL
+        Assert.DoesNotContain("FRAMEBYTES", bugCall.Body);          // no inline frame payload
+    }
+
+    [Fact]
+    public async Task SendFeedback_UploadsAttachments_AndReferencesThemByUrl()
+    {
+        var (backend, ch, http) = NewInitialized();
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+        http.Responses.Enqueue(new HttpResult(200, "{\"shareToken\":\"st1\"}"));
+
+        var rawBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes("LOGDATA"));
+        backend.AddAttachment(rawBase64, "diagnostics.txt");
+        ch.SimulateIncoming("{\"name\":\"send-feedback\",\"data\":{\"formData\":{},\"action\":{\"feedbackType\":\"BUG\"}}}");
+        await backend.LastFeedbackTask!;
+
+        // Custom attachments upload to /uploads/attachments and are referenced by URL (name/type preserved).
+        var upload = Assert.Single(http.MultiUploads, u => u.Url == "https://api.gleap.io/uploads/attachments");
+        Assert.Equal("diagnostics.txt", Assert.Single(upload.Files).FileName);
+        var bugCall = Assert.Single(http.Calls, c => c.Url == "https://api.gleap.io/bugs/v2");
+        Assert.Contains("attachments", bugCall.Body);
+        Assert.Contains("uploads.gleap.io/u0.png", bugCall.Body);   // referenced by uploaded URL
+        Assert.Contains("diagnostics.txt", bugCall.Body);           // name preserved
+        Assert.Contains("text/plain", bugCall.Body);                // MIME derived from extension
     }
 
     // A canned inner handler so the network-logging test never touches the real network.

@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using GleapSDK.Models;
 
 namespace GleapSDK.Feedback;
 
@@ -16,7 +15,7 @@ public static class FeedbackAssembler
         string? priority,
         bool isSilent,
         ISet<string> excludeKeys,
-        IReadOnlyList<GleapAttachment>? attachments = null,
+        IReadOnlyList<IReadOnlyDictionary<string, object?>>? attachments = null,
         string? screenshotUrl = null,
         IReadOnlyDictionary<string, object?>? replay = null)
     {

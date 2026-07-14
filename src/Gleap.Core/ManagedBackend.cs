@@ -141,10 +141,11 @@ public sealed class ManagedBackend : IGleapBackend
                 }
             }
             var screenshotUrl = await UploadScreenshotAsync(dataUri, default).ConfigureAwait(false);
-            var replay = _replay.Snapshot().Count > 0 && !excludeKeys.Contains("replays") ? _replay.BuildReplay() : null;
+            var attachments = await UploadAttachmentsAsync(excludeKeys, default).ConfigureAwait(false);
+            var replay = await BuildReplayAsync(excludeKeys, default).ConfigureAwait(false);
 
             var body = FeedbackAssembler.Build(
-                _collector.BuildTicketData(), formData, type, null, false, excludeKeys, _attachments.Snapshot(),
+                _collector.BuildTicketData(), formData, type, null, false, excludeKeys, attachments,
                 screenshotUrl: screenshotUrl, replay: replay);
             var response = await _api.SubmitBugAsync(body, _session.GleapId, _session.GleapHash, default).ConfigureAwait(false);
             _bridge.Send(new GleapBridgeMessage { Name = "feedback-sent", Data = new Dictionary<string, object?> { ["response"] = response } });
@@ -184,10 +185,11 @@ public sealed class ManagedBackend : IGleapBackend
             }
         }
         var screenshotUrl = await UploadScreenshotAsync(dataUri, ct).ConfigureAwait(false);
-        var replay = _replay.Snapshot().Count > 0 && !excludeKeys.Contains("replays") ? _replay.BuildReplay() : null;
+        var attachments = await UploadAttachmentsAsync(excludeKeys, ct).ConfigureAwait(false);
+        var replay = await BuildReplayAsync(excludeKeys, ct).ConfigureAwait(false);
 
         var body = FeedbackAssembler.Build(
-            _collector.BuildTicketData(), formData, "CRASH", priority, true, excludeKeys, _attachments.Snapshot(),
+            _collector.BuildTicketData(), formData, "CRASH", priority, true, excludeKeys, attachments,
             screenshotUrl: screenshotUrl, replay: replay);
         await _api.SubmitBugAsync(body, _session.GleapId, _session.GleapHash, ct).ConfigureAwait(false);
     }
@@ -195,6 +197,60 @@ public sealed class ManagedBackend : IGleapBackend
     /// <summary>Pushes a periodically captured screenshot into the bounded replay ring
     /// (platform host owns the timer cadence).</summary>
     public void AddReplayFrame(string base64) => _replay.AddFrame(base64);
+
+    /// <summary>Captures one replay frame from the app surface (via the screenshot provider) and pushes it
+    /// into the replay ring. The platform host drives the cadence from <see cref="ReplayIntervalMs"/>.
+    /// No-op when no screenshot provider is configured.</summary>
+    public async Task CaptureReplayFrameAsync(CancellationToken ct = default)
+    {
+        if (_d.Screenshot == null)
+        {
+            return;
+        }
+        string? shot;
+        try
+        {
+            shot = await _d.Screenshot.CaptureScreenshotAsync(ct).ConfigureAwait(false);
+        }
+        catch (System.Exception)
+        {
+            shot = null;
+        }
+        if (shot != null)
+        {
+            _replay.AddFrame(shot);
+        }
+    }
+
+    /// <summary>Replay capture interval in milliseconds when the project enabled session replays
+    /// (flowConfig <c>enableReplays</c>), else null. The platform host uses this to decide whether and
+    /// how often to capture replay frames — mirroring the native SDKs, which only run the replay timer
+    /// when the project turned replays on.</summary>
+    public int? ReplayIntervalMs
+    {
+        get
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(_config?.FlowConfigJson ?? "{}");
+                var root = doc.RootElement;
+                if (root.ValueKind != JsonValueKind.Object
+                    || !root.TryGetProperty("enableReplays", out var enabled)
+                    || enabled.ValueKind != JsonValueKind.True)
+                {
+                    return null;
+                }
+                var seconds = root.TryGetProperty("replaysInterval", out var iv) && iv.TryGetInt32(out var s) && s > 0
+                    ? s
+                    : 5;
+                return seconds * 1000;
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+        }
+    }
 
     /// <summary>Captures the current app surface and pushes it to the widget via <c>screenshot-update</c>,
     /// so the user can preview/annotate it in the report flow. Clears any prior edited screenshot to
@@ -302,6 +358,169 @@ public sealed class ManagedBackend : IGleapBackend
         }
         var extension = contentType == "image/jpeg" ? "jpg" : "png";
         return (bytes, "screenshot." + extension, contentType);
+    }
+
+    /// <summary>Uploads the pending custom attachments to <c>/uploads/attachments</c> and returns
+    /// <c>{url, name, type}</c> entries (inline data stripped), like the native SDKs. Null when excluded,
+    /// empty, or the upload fails, so a report is never blocked by it.</summary>
+    private async Task<IReadOnlyList<IReadOnlyDictionary<string, object?>>?> UploadAttachmentsAsync(
+        HashSet<string> excludeKeys, CancellationToken ct)
+    {
+        if (excludeKeys.Contains("attachments"))
+        {
+            return null;
+        }
+        var pending = _attachments.Snapshot();
+        if (pending.Count == 0)
+        {
+            return null;
+        }
+
+        var files = new List<UploadFile>();
+        foreach (var att in pending)
+        {
+            var decoded = DecodeUpload(att.Base64File, att.FileName, MimeFromName(att.FileName));
+            if (decoded != null)
+            {
+                files.Add(decoded);
+            }
+        }
+        if (files.Count == 0)
+        {
+            return null;
+        }
+
+        IReadOnlyList<string> urls;
+        try
+        {
+            urls = await _api.UploadImagesAsync("attachments", files, _session.GleapId, _session.GleapHash, ct).ConfigureAwait(false);
+        }
+        catch (System.Exception)
+        {
+            return null;
+        }
+
+        var result = new List<IReadOnlyDictionary<string, object?>>();
+        for (var i = 0; i < files.Count && i < urls.Count; i++)
+        {
+            result.Add(new Dictionary<string, object?>
+            {
+                ["url"] = urls[i],
+                ["name"] = files[i].FileName,
+                ["type"] = files[i].ContentType
+            });
+        }
+        return result.Count > 0 ? result : null;
+    }
+
+    /// <summary>Uploads the captured replay frames to <c>/uploads/sdksteps</c> and builds
+    /// <c>{interval, frames:[url…]}</c> (URLs, not inline base64), like the native SDKs. Null when excluded,
+    /// empty, or the upload fails.</summary>
+    private async Task<IReadOnlyDictionary<string, object?>?> BuildReplayAsync(
+        HashSet<string> excludeKeys, CancellationToken ct)
+    {
+        if (excludeKeys.Contains("replays"))
+        {
+            return null;
+        }
+        var frames = _replay.Snapshot();
+        if (frames.Count == 0)
+        {
+            return null;
+        }
+
+        var files = new List<UploadFile>();
+        foreach (var frame in frames)
+        {
+            var decoded = DecodeUpload(frame, "replay.png", "image/png");
+            if (decoded != null)
+            {
+                files.Add(decoded);
+            }
+        }
+        if (files.Count == 0)
+        {
+            return null;
+        }
+
+        IReadOnlyList<string> urls;
+        try
+        {
+            urls = await _api.UploadImagesAsync("sdksteps", files, _session.GleapId, _session.GleapHash, ct).ConfigureAwait(false);
+        }
+        catch (System.Exception)
+        {
+            return null;
+        }
+        if (urls.Count == 0)
+        {
+            return null;
+        }
+
+        return new Dictionary<string, object?>
+        {
+            ["interval"] = ReplayIntervalMs ?? _replay.IntervalMs,
+            ["frames"] = urls
+        };
+    }
+
+    /// <summary>Decodes a data-URI or raw base64 string into an <see cref="UploadFile"/>, deriving the
+    /// content type from the data-URI header when present. Returns null on malformed base64.</summary>
+    private static UploadFile? DecodeUpload(string? content, string fileName, string fallbackContentType)
+    {
+        if (string.IsNullOrEmpty(content))
+        {
+            return null;
+        }
+        const string prefix = "data:";
+        if (content!.StartsWith(prefix, System.StringComparison.Ordinal))
+        {
+            var comma = content.IndexOf(',');
+            if (comma < 0)
+            {
+                return null;
+            }
+            var contentType = content.Substring(prefix.Length, comma - prefix.Length).Split(';')[0];
+            if (string.IsNullOrEmpty(contentType))
+            {
+                contentType = fallbackContentType;
+            }
+            var payload = DecodeBase64(content.Substring(comma + 1));
+            return payload == null ? null : new UploadFile(payload, fileName, contentType);
+        }
+
+        var raw = DecodeBase64(content);
+        return raw == null ? null : new UploadFile(raw, fileName, fallbackContentType);
+    }
+
+    private static byte[]? DecodeBase64(string value)
+    {
+        try
+        {
+            return System.Convert.FromBase64String(value);
+        }
+        catch (System.FormatException)
+        {
+            return null;
+        }
+    }
+
+    private static string MimeFromName(string fileName)
+    {
+        var dot = fileName.LastIndexOf('.');
+        var ext = dot >= 0 ? fileName.Substring(dot + 1).ToUpperInvariant() : string.Empty;
+        return ext switch
+        {
+            "PNG" => "image/png",
+            "JPG" or "JPEG" => "image/jpeg",
+            "GIF" => "image/gif",
+            "WEBP" => "image/webp",
+            "PDF" => "application/pdf",
+            "TXT" or "LOG" => "text/plain",
+            "JSON" => "application/json",
+            "CSV" => "text/csv",
+            _ => "application/octet-stream"
+        };
     }
 
     private SessionSnapshot BuildSnapshot() => new()

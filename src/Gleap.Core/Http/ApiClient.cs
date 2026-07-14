@@ -178,6 +178,42 @@ public sealed class ApiClient
         }
     }
 
+    /// <summary>POST /uploads/{endpoint} (multipart, repeated field "file") and returns the server-assigned
+    /// <c>fileUrls</c> in order (empty on failure). Used for custom attachments and replay frames, which the
+    /// report references by URL, not inline base64.</summary>
+    public async Task<IReadOnlyList<string>> UploadImagesAsync(
+        string endpoint, IReadOnlyList<UploadFile> files, string? gleapId, string? gleapHash, CancellationToken ct)
+    {
+        var res = await _http.UploadManyAsync(_endpoints.ApiUrl + "/uploads/" + endpoint, files,
+            BaseHeaders(gleapId, gleapHash), ct).ConfigureAwait(false);
+        if (!res.IsSuccess)
+        {
+            return System.Array.Empty<string>();
+        }
+        try
+        {
+            using var doc = JsonDocument.Parse(res.Body);
+            if (doc.RootElement.TryGetProperty("fileUrls", out var arr) && arr.ValueKind == JsonValueKind.Array)
+            {
+                var urls = new List<string>();
+                foreach (var el in arr.EnumerateArray())
+                {
+                    var s = el.GetString();
+                    if (s != null)
+                    {
+                        urls.Add(s);
+                    }
+                }
+                return urls;
+            }
+        }
+        catch (JsonException)
+        {
+            // fall through to empty
+        }
+        return System.Array.Empty<string>();
+    }
+
     /// <summary>POST /bugs/v2 with the assembled report body. Returns the raw response JSON.</summary>
     public async Task<string> SubmitBugAsync(
         IReadOnlyDictionary<string, object?> body, string? gleapId, string? gleapHash, CancellationToken ct)

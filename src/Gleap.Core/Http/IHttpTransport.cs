@@ -16,4 +16,10 @@ public interface IHttpTransport
     Task<HttpResult> UploadAsync(
         string url, byte[] fileBytes, string fileName, string contentType,
         IReadOnlyDictionary<string, string> headers, CancellationToken ct);
+
+    /// <summary>Multipart <c>POST</c> of several files, each under the repeated form field <c>file</c>
+    /// (for <c>/uploads/attachments</c> and <c>/uploads/sdksteps</c>, which return a <c>fileUrls</c> array).</summary>
+    Task<HttpResult> UploadManyAsync(
+        string url, IReadOnlyList<UploadFile> files,
+        IReadOnlyDictionary<string, string> headers, CancellationToken ct);
 }
