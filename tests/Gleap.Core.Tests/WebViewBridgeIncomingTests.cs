@@ -106,19 +106,6 @@ public class WebViewBridgeIncomingTests
     }
 
     [Fact]
-    public void StartScreenDrawing_RaisesEvent()
-    {
-        var ch = new FakeWebViewChannel();
-        var bridge = NewBridge(ch);
-        var started = false;
-        bridge.ScreenDrawingStarted += () => started = true;
-
-        ch.SimulateIncoming("{\"name\":\"start-screen-drawing\"}");
-
-        Assert.True(started);
-    }
-
-    [Fact]
     public void MalformedJson_IsIgnored()
     {
         var ch = new FakeWebViewChannel();

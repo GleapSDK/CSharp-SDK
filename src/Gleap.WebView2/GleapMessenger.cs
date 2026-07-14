@@ -55,7 +55,6 @@ public class GleapMessenger : Grid, IDisposable
     private bool _initializing;
     private bool _isOpen;
     private bool _disposed;
-    private bool _editing;
     private GleapSDK.Http.GleapEndpoints _endpoints = GleapSDK.Http.GleapEndpoints.Default;
     private GleapOutboundSurface? _banner;
     private GleapOutboundSurface? _modal;
@@ -296,7 +295,6 @@ public class GleapMessenger : Grid, IDisposable
         }
         _isOpen = false;
         _overlay.IsHitTestVisible = false;
-        RestoreSize();   // reset if the screenshot editor left the overlay expanded
         AnimatePanel(open: false);
         CrossfadeLauncher(open: false);
     }
@@ -327,9 +325,6 @@ public class GleapMessenger : Grid, IDisposable
             Gleap.RegisterListener("widgetClosed", _ => OnUi(HideMessenger));
             Gleap.RegisterListener("notificationCountUpdated", count => OnUi(() => UpdateBadge(count)));
             Gleap.RegisterListener("outboundSent", d => OnUi(() => OnOutbound(d)));
-            // Grow to (near-)fullscreen while the widget's screenshot editor is open (like mobile), back after.
-            Gleap.RegisterListener("screenDrawingStarted", _ => OnUi(ExpandForEditing));
-            Gleap.RegisterListener("screenshotEdited", _ => OnUi(RestoreSize));
 
             if (EnableOutboundPolling)
             {
@@ -402,43 +397,6 @@ public class GleapMessenger : Grid, IDisposable
         _overlay.Height = h;
         _webView.Height = h;
         _webView.Clip = new RectangleGeometry(new Rect(0, 0, PanelWidth, h), CornerRadius, CornerRadius);
-    }
-
-    /// <summary>Grows the overlay to (near-)fullscreen while the widget's screenshot annotation editor is
-    /// open, so it isn't cramped in the compact panel — matching the fullscreen editor on web/mobile.</summary>
-    private void ExpandForEditing()
-    {
-        if (_editing || _disposed || !_isOpen)
-        {
-            return;
-        }
-        _editing = true;
-        double w = Math.Max(PanelWidth, ActualWidth - 48);
-        double h = Math.Max(PanelHeight, ActualHeight - 48);
-        _overlay.HorizontalAlignment = HorizontalAlignment.Center;
-        _overlay.VerticalAlignment = VerticalAlignment.Center;
-        _overlay.Margin = new Thickness(0);
-        _overlay.Width = w;
-        _overlay.Height = h;
-        _webView.Width = w;
-        _webView.Height = h;
-        _webView.Clip = new RectangleGeometry(new Rect(0, 0, w, h), CornerRadius, CornerRadius);
-    }
-
-    /// <summary>Restores the compact bottom-right panel after the screenshot editor closes.</summary>
-    private void RestoreSize()
-    {
-        if (!_editing)
-        {
-            return;
-        }
-        _editing = false;
-        _overlay.HorizontalAlignment = HorizontalAlignment.Right;
-        _overlay.VerticalAlignment = VerticalAlignment.Bottom;
-        _overlay.Margin = new Thickness(0, 0, 28, 84);
-        _overlay.Width = PanelWidth;
-        _webView.Width = PanelWidth;
-        ResizePanel();
     }
 
     /// <summary>Renders an outbound banner/modal (matching the native SDKs) when the poll surfaces one.
