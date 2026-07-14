@@ -45,7 +45,7 @@ public class GleapMessenger : Grid, IDisposable
     private readonly Border _launcher;
     private readonly ScaleTransform _launcherScale;
     private readonly Viewbox _chatIcon;
-    private readonly Viewbox _closeIcon;
+    private readonly FrameworkElement _closeIcon;
     private readonly Border _badge;
     private readonly TextBlock _badgeText;
     private DispatcherTimer? _pollTimer;
@@ -118,15 +118,7 @@ public class GleapMessenger : Grid, IDisposable
             Fill = Brushes.White,
             Data = Geometry.Parse("M6,3 H22 A4,4 0 0 1 26,7 V17 A4,4 0 0 1 22,21 H14 L9,26 V21 H6 A4,4 0 0 1 2,17 V7 A4,4 0 0 1 6,3 Z")
         }, 26);
-        _closeIcon = MakeIcon(new Path
-        {
-            Stroke = Brushes.White,
-            StrokeThickness = 2.2,
-            StrokeStartLineCap = PenLineCap.Round,
-            StrokeEndLineCap = PenLineCap.Round,
-            // Symmetric about the origin so the Viewbox centres it exactly.
-            Data = Geometry.Parse("M -7 -7 L 7 7 M 7 -7 L -7 7")
-        }, 20);
+        _closeIcon = MakeCloseIcon();
         _closeIcon.Opacity = 0;
 
         _launcherScale = new ScaleTransform(1, 1);
@@ -187,6 +179,35 @@ public class GleapMessenger : Grid, IDisposable
         HorizontalAlignment = HorizontalAlignment.Center,
         VerticalAlignment = VerticalAlignment.Center,
         Child = child
+    };
+
+    // An "X" built from two centred, rotated bars — guaranteed dead-centre regardless of geometry
+    // bounds (a stroked Path in a Viewbox mis-centres once you scale/rotate it).
+    private static Grid MakeCloseIcon()
+    {
+        var g = new Grid
+        {
+            Width = 20,
+            Height = 20,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        g.Children.Add(MakeBar(45));
+        g.Children.Add(MakeBar(-45));
+        return g;
+    }
+
+    private static Rectangle MakeBar(double angle) => new()
+    {
+        Width = 18,
+        Height = 2.2,
+        RadiusX = 1.1,
+        RadiusY = 1.1,
+        Fill = Brushes.White,
+        HorizontalAlignment = HorizontalAlignment.Center,
+        VerticalAlignment = VerticalAlignment.Center,
+        RenderTransformOrigin = new Point(0.5, 0.5),
+        RenderTransform = new RotateTransform(angle)
     };
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
