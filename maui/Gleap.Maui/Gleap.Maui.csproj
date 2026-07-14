@@ -34,6 +34,12 @@
     <ProjectReference Include="..\..\src\Gleap.Core\Gleap.Core.csproj" />
   </ItemGroup>
 
+  <!-- [Java.Interop.Export] on the Android bridge's gleapCallback lives in Mono.Android.Export,
+       which is not referenced by default; without it the Android TFM fails to compile (CS0246). -->
+  <ItemGroup Condition="$(TargetFramework.Contains('-android'))">
+    <Reference Include="Mono.Android.Export" />
+  </ItemGroup>
+
   <ItemGroup>
     <None Include="..\..\LICENSE.md" Pack="true" PackagePath="\" />
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
