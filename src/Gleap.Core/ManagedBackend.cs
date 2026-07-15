@@ -578,8 +578,14 @@ public sealed class ManagedBackend : IGleapBackend
         AiTools = _aiTools
     };
 
+    /// <summary>Opens the messenger. Idempotent: a no-op when already open, so the navigation methods and
+    /// the platform host's own open path can both call it without double-firing <c>widgetOpened</c>.</summary>
     public void Open()
     {
+        if (_widgetOpen)
+        {
+            return;
+        }
         Bridge.Send(new GleapBridgeMessage
         {
             Name = "widget-status-update",
@@ -589,6 +595,9 @@ public sealed class ManagedBackend : IGleapBackend
         _events.Emit("widgetOpened");
     }
 
+    /// <summary>Closes the messenger. Unlike <see cref="Open"/> this is not guarded: closing an
+    /// already-closed widget still reports <c>widgetClosed</c>, and there is no re-entrant path here (the
+    /// host's close handler only hides its panel; it does not call back into Close).</summary>
     public void Close()
     {
         Bridge.Send(new GleapBridgeMessage
@@ -770,23 +779,33 @@ public sealed class ManagedBackend : IGleapBackend
             + $"&apiKey={Esc(_token)}&sdkVersion={Esc(_d.SdkVersion)}";
     }
 
-    public void StartConversation(bool showBackButton) => Bridge.Send(WidgetCommands.StartConversation(showBackButton));
-    public void StartBot(string botId, bool showBackButton) => Bridge.Send(WidgetCommands.StartBot(botId, showBackButton));
-    public void OpenConversation(string shareToken) => Bridge.Send(WidgetCommands.OpenConversation(shareToken));
-    public void OpenHelpCenter(bool showBackButton) => Bridge.Send(WidgetCommands.OpenHelpCenter(showBackButton));
-    public void OpenNews(bool showBackButton) => Bridge.Send(WidgetCommands.OpenNews(showBackButton));
-    public void ShowSurvey(string surveyId, SurveyFormat format) => Bridge.Send(WidgetCommands.StartSurvey(surveyId, format));
-    public void OpenConversations(bool showBackButton) => Bridge.Send(WidgetCommands.OpenConversations(showBackButton));
-    public void StartClassicForm(string formId, bool showBackButton) => Bridge.Send(WidgetCommands.StartClassicForm(formId, showBackButton));
-    public void OpenHelpCenterArticle(string articleId, bool showBackButton) => Bridge.Send(WidgetCommands.OpenHelpCenterArticle(articleId, showBackButton));
-    public void OpenHelpCenterCollection(string collectionId, bool showBackButton) => Bridge.Send(WidgetCommands.OpenHelpCenterCollection(collectionId, showBackButton));
-    public void SearchHelpCenter(string term, bool showBackButton) => Bridge.Send(WidgetCommands.SearchHelpCenter(term, showBackButton));
-    public void OpenNewsArticle(string articleId, bool showBackButton) => Bridge.Send(WidgetCommands.OpenNewsArticle(articleId, showBackButton));
-    public void OpenFeatureRequests(bool showBackButton) => Bridge.Send(WidgetCommands.OpenFeatureRequests(showBackButton));
-    public void OpenChecklists(bool showBackButton) => Bridge.Send(WidgetCommands.OpenChecklists(showBackButton));
-    public void OpenChecklist(string checklistId, bool showBackButton) => Bridge.Send(WidgetCommands.OpenChecklist(checklistId, showBackButton));
-    public void StartChecklist(string outboundId, bool showBackButton) => Bridge.Send(WidgetCommands.StartChecklist(outboundId, showBackButton));
-    public void AskAI(string question, bool showBackButton) => Bridge.Send(WidgetCommands.AskAI(question, showBackButton));
+    // Every navigation command also reveals the messenger, mirroring the reference SDKs where each of
+    // these ends in showWidget() (JS) / a widget presentation (iOS). Without it the host would send the
+    // command to a widget the user cannot see. Open() is idempotent, so the host's own open path (which
+    // calls Open() itself) does not double-fire.
+    private void Navigate(GleapBridgeMessage command)
+    {
+        Bridge.Send(command);
+        Open();
+    }
+
+    public void StartConversation(bool showBackButton) => Navigate(WidgetCommands.StartConversation(showBackButton));
+    public void StartBot(string botId, bool showBackButton) => Navigate(WidgetCommands.StartBot(botId, showBackButton));
+    public void OpenConversation(string shareToken) => Navigate(WidgetCommands.OpenConversation(shareToken));
+    public void OpenHelpCenter(bool showBackButton) => Navigate(WidgetCommands.OpenHelpCenter(showBackButton));
+    public void OpenNews(bool showBackButton) => Navigate(WidgetCommands.OpenNews(showBackButton));
+    public void ShowSurvey(string surveyId, SurveyFormat format) => Navigate(WidgetCommands.StartSurvey(surveyId, format));
+    public void OpenConversations(bool showBackButton) => Navigate(WidgetCommands.OpenConversations(showBackButton));
+    public void StartClassicForm(string formId, bool showBackButton) => Navigate(WidgetCommands.StartClassicForm(formId, showBackButton));
+    public void OpenHelpCenterArticle(string articleId, bool showBackButton) => Navigate(WidgetCommands.OpenHelpCenterArticle(articleId, showBackButton));
+    public void OpenHelpCenterCollection(string collectionId, bool showBackButton) => Navigate(WidgetCommands.OpenHelpCenterCollection(collectionId, showBackButton));
+    public void SearchHelpCenter(string term, bool showBackButton) => Navigate(WidgetCommands.SearchHelpCenter(term, showBackButton));
+    public void OpenNewsArticle(string articleId, bool showBackButton) => Navigate(WidgetCommands.OpenNewsArticle(articleId, showBackButton));
+    public void OpenFeatureRequests(bool showBackButton) => Navigate(WidgetCommands.OpenFeatureRequests(showBackButton));
+    public void OpenChecklists(bool showBackButton) => Navigate(WidgetCommands.OpenChecklists(showBackButton));
+    public void OpenChecklist(string checklistId, bool showBackButton) => Navigate(WidgetCommands.OpenChecklist(checklistId, showBackButton));
+    public void StartChecklist(string outboundId, bool showBackButton) => Navigate(WidgetCommands.StartChecklist(outboundId, showBackButton));
+    public void AskAI(string question, bool showBackButton) => Navigate(WidgetCommands.AskAI(question, showBackButton));
 
     public async Task IdentifyContactAsync(string userId, GleapUserProperty? properties, string? userHash, CancellationToken ct)
     {

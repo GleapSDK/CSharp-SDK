@@ -67,6 +67,7 @@ public class GleapMessenger : Grid, IDisposable
 
     // Held so Dispose can Gleap.RemoveListener them: the dispatcher removes by delegate reference,
     // and these lambdas capture `this`, so leaving them registered leaks the disposed control.
+    private Action<object?>? _onWidgetOpened;
     private Action<object?>? _onWidgetClosed;
     private Action<object?>? _onNotificationCountUpdated;
     private Action<object?>? _onOutboundSent;
@@ -345,9 +346,15 @@ public class GleapMessenger : Grid, IDisposable
             _notifications = new GleapNotificationStack(this, OnNotificationClicked);
             ApplyLauncherStyle();
 
+            // Reveal the panel whenever anything opens the messenger — including the facade's navigation
+            // API (Gleap.OpenHelpCenter(), StartBot(), …), which otherwise would only send a bridge
+            // command to a widget the user never sees. ShowMessenger -> OpenAsync is a no-op once open,
+            // so the launcher path (which opens first, then calls Gleap.Open()) does not recurse.
+            _onWidgetOpened = _ => OnUi(ShowMessenger);
             _onWidgetClosed = _ => OnUi(HideMessenger);
             _onNotificationCountUpdated = count => OnUi(() => UpdateBadge(count));
             _onOutboundSent = d => OnUi(() => OnOutbound(d));
+            Gleap.RegisterListener("widgetOpened", _onWidgetOpened);
             Gleap.RegisterListener("widgetClosed", _onWidgetClosed);
             Gleap.RegisterListener("notificationCountUpdated", _onNotificationCountUpdated);
             Gleap.RegisterListener("outboundSent", _onOutboundSent);
@@ -678,6 +685,11 @@ public class GleapMessenger : Grid, IDisposable
             _pageTimer = null;
 
             // Unhook the facade listeners so the disposed control isn't kept alive by the backend.
+            if (_onWidgetOpened != null)
+            {
+                Gleap.RemoveListener("widgetOpened", _onWidgetOpened);
+                _onWidgetOpened = null;
+            }
             if (_onWidgetClosed != null)
             {
                 Gleap.RemoveListener("widgetClosed", _onWidgetClosed);

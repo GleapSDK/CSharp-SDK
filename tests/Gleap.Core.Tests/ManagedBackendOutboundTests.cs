@@ -143,6 +143,39 @@ public class ManagedBackendOutboundTests
         Assert.Equal(4, unread);              // ...but the unread count still applies (iOS behaviour)
     }
 
+    // The navigation API must also reveal the messenger — the reference SDKs end each of these in
+    // showWidget(). Without it the command reaches a widget the user cannot see.
+
+    [Fact]
+    public async Task NavigationMethods_OpenTheWidget()
+    {
+        var (backend, ch, _) = await NewInitializedAsync();
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+        var opened = 0;
+        backend.RegisterListener("widgetOpened", _ => opened++);
+
+        backend.OpenHelpCenter(showBackButton: true);
+
+        Assert.Equal(1, opened);
+        Assert.True(backend.IsOpened());
+        Assert.Contains(ch.ExecutedScripts, s => s.Contains("open-helpcenter"));
+    }
+
+    [Fact]
+    public async Task Open_IsIdempotent()
+    {
+        var (backend, ch, _) = await NewInitializedAsync();
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+        var opened = 0;
+        backend.RegisterListener("widgetOpened", _ => opened++);
+
+        backend.Open();
+        backend.StartBot("b1", true);   // navigating while already open must not re-fire
+        backend.Open();
+
+        Assert.Equal(1, opened);
+    }
+
     [Fact]
     public async Task Poll_FlushesEvents_NotResentNextCycle()
     {
