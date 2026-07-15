@@ -1,11 +1,25 @@
 {
   "name": "com.gleap.sdk",
-  "version": "0.1.0",
+  "version": "0.1.0-beta.1",
   "displayName": "Gleap",
   "description": "Gleap C# SDK for Unity. Reuses the platform-agnostic Gleap.Core engine; a WebView plugin providing IWebViewChannel is required to render the widget on standalone/mobile.",
   "unity": "2021.3",
+  "license": "Proprietary — see LICENSE.md",
+  "documentationUrl": "https://docs.gleap.io/unity/README",
+  "keywords": [
+    "gleap",
+    "feedback",
+    "bug-reporting",
+    "support",
+    "survey",
+    "live-chat"
+  ],
   "dependencies": {
     "com.unity.nuget.newtonsoft-json": "3.2.1"
   },
-  "author": { "name": "Gleap", "url": "https://gleap.io" }
+  "author": { "name": "Gleap", "url": "https://gleap.io" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GleapSDK/CSharp-SDK.git"
+  }
 }

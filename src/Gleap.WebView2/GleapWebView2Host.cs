@@ -15,8 +15,8 @@ namespace GleapSDK.WebView2;
 /// </summary>
 public static class GleapWebView2Host
 {
-    /// <summary>SDK version reported in metadata (bump with releases).</summary>
-    public const string SdkVersion = "0.1.0";
+    /// <summary>SDK version reported in metadata. Single source of truth: <see cref="Gleap.Version"/>.</summary>
+    public const string SdkVersion = Gleap.Version;
 
     public static async Task<ManagedBackend> AttachAsync(
         Microsoft.Web.WebView2.Wpf.IWebView2 webView, string sdkKey, GleapEndpoints? endpoints = null)

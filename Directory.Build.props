@@ -1,5 +1,10 @@
 <Project>
   <PropertyGroup>
+    <!-- Single source of truth for every packable project's NuGet version. Keep in step with
+         GleapSDK.Gleap.Version (the runtime-reported SDK version) and the Unity package.json. -->
+    <Version>0.1.0-beta.1</Version>
+    <Authors>Gleap GmbH</Authors>
+    <Company>Gleap GmbH</Company>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>

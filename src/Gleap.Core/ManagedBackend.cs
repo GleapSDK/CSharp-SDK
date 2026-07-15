@@ -48,7 +48,7 @@ public sealed class ManagedBackend : IGleapBackend
         public string DeviceType { get; set; } = "desktop";
 
         /// <summary>SDK version reported to the API on ping/contact updates.</summary>
-        public string SdkVersion { get; set; } = "0.1.0";
+        public string SdkVersion { get; set; } = Gleap.Version;
     }
 
     private readonly Dependencies _d;

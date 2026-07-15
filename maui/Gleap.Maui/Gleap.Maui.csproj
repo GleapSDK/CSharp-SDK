@@ -15,9 +15,6 @@
   <!-- NuGet package metadata (proprietary license: use PackageLicenseFile, not an SPDX expression). -->
   <PropertyGroup>
     <PackageId>Gleap.Maui</PackageId>
-    <Version>0.1.0</Version>
-    <Authors>Gleap GmbH</Authors>
-    <Company>Gleap GmbH</Company>
     <Description>Gleap SDK for .NET MAUI — in-app feedback, bug reporting, surveys, product tours and live chat on Android, iOS, MacCatalyst and Windows.</Description>
     <PackageProjectUrl>https://gleap.io</PackageProjectUrl>
     <RepositoryUrl>https://github.com/GleapSDK/CSharp-SDK</RepositoryUrl>

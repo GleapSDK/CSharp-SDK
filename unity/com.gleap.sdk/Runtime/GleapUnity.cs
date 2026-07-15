@@ -13,7 +13,7 @@ namespace GleapSDK.Unity
     /// </summary>
     public static class GleapUnity
     {
-        public const string SdkVersion = "0.1.0";
+        public const string SdkVersion = Gleap.Version;
 
         /// <summary>
         /// Wires the Gleap facade to a Unity-hosted WebView channel, then initializes the session/config.

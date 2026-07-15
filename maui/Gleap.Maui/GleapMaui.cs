@@ -16,7 +16,7 @@ namespace GleapSDK.Maui;
 /// </summary>
 public static class GleapMaui
 {
-    public const string SdkVersion = "0.1.0";
+    public const string SdkVersion = Gleap.Version;
 
     public static async Task<ManagedBackend> AttachAsync(MauiWebViewChannel channel, string sdkKey)
     {

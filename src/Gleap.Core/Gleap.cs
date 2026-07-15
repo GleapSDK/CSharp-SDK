@@ -10,6 +10,10 @@ namespace GleapSDK;
 /// </summary>
 public static class Gleap
 {
+    /// <summary>The SDK version reported to Gleap and shared by every platform package.
+    /// Single source of truth — the NuGet/UPM package versions are kept in step with it.</summary>
+    public const string Version = "0.1.0-beta.1";
+
     private static IGleapBackend? _backend;
 
     private static IGleapBackend Backend =>
