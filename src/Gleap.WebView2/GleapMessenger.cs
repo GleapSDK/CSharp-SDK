@@ -71,6 +71,7 @@ public class GleapMessenger : Grid, IDisposable
     private Action<object?>? _onWidgetClosed;
     private Action<object?>? _onNotificationCountUpdated;
     private Action<object?>? _onOutboundSent;
+    private Action<object?>? _onFeedbackButtonVisibilityUpdated;
 
     /// <summary>Project SDK key. Set before the control loads (e.g. in the host's constructor).</summary>
     public string? SdkKey { get; set; }
@@ -354,10 +355,16 @@ public class GleapMessenger : Grid, IDisposable
             _onWidgetClosed = _ => OnUi(HideMessenger);
             _onNotificationCountUpdated = count => OnUi(() => UpdateBadge(count));
             _onOutboundSent = d => OnUi(() => OnOutbound(d));
+            _onFeedbackButtonVisibilityUpdated = v => OnUi(() => ApplyLauncherVisibility(v as bool? ?? true));
             Gleap.RegisterListener("widgetOpened", _onWidgetOpened);
             Gleap.RegisterListener("widgetClosed", _onWidgetClosed);
             Gleap.RegisterListener("notificationCountUpdated", _onNotificationCountUpdated);
             Gleap.RegisterListener("outboundSent", _onOutboundSent);
+            Gleap.RegisterListener("feedbackButtonVisibilityUpdated", _onFeedbackButtonVisibilityUpdated);
+
+            // Honour the project's configured feedback-button position (hidden when BUTTON_HIDE), matching
+            // the web/native SDKs. Programmatic Gleap.Open()/navigation still works while it is hidden.
+            ApplyLauncherVisibility(_backend!.IsFeedbackButtonVisible);
 
             if (EnableOutboundPolling)
             {
@@ -629,6 +636,17 @@ public class GleapMessenger : Grid, IDisposable
     private static double ReadDouble(JsonElement root, string name) =>
         root.TryGetProperty(name, out var e) && e.ValueKind == JsonValueKind.Number && e.TryGetDouble(out var v) ? v : 0;
 
+    /// <summary>Shows or hides the launcher button per the project config / <c>Gleap.ShowFeedbackButton</c>.
+    /// Hiding it also clears the unread badge; the messenger can still be opened programmatically.</summary>
+    private void ApplyLauncherVisibility(bool visible)
+    {
+        _launcher.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        if (!visible)
+        {
+            _badge.Visibility = Visibility.Collapsed;
+        }
+    }
+
     private void UpdateBadge(object? count)
     {
         var n = count switch
@@ -704,6 +722,11 @@ public class GleapMessenger : Grid, IDisposable
             {
                 Gleap.RemoveListener("outboundSent", _onOutboundSent);
                 _onOutboundSent = null;
+            }
+            if (_onFeedbackButtonVisibilityUpdated != null)
+            {
+                Gleap.RemoveListener("feedbackButtonVisibilityUpdated", _onFeedbackButtonVisibilityUpdated);
+                _onFeedbackButtonVisibilityUpdated = null;
             }
 
             _notifications?.Clear();

@@ -59,6 +59,8 @@ public class GleapFacadeTests
         public void SetLanguage(string language) { }
         public bool IsOpened() => false;
         public void ShowFeedbackButton(bool visible) { }
+        public bool IsFeedbackButtonVisible => true;
+        public string FeedbackButtonPosition => string.Empty;
         public void SetDisableInAppNotifications(bool disable) { }
         public void PreFillForm(IReadOnlyDictionary<string, object?> formData) { }
         public void StartNetworkLogging() { }

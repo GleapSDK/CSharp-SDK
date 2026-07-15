@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Gleap</title>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: transparent; overflow: hidden; }
+    #gleapFrame { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; }
+  </style>
+</head>
+<body>
+  <!--
+    Gleap OBrowser bridge wrapper.
+
+    This page plays the exact role Gleap's hosted `/appnew` wrapper plays for the native iOS/Android/WebView2
+    SDKs: it embeds the real Gleap widget frame as a cross-origin iframe and relays the widget protocol
+    (`{name,data}` JSON over postMessage) between that iframe and the native host. The only difference from
+    `/appnew` is the native transport: instead of `window.webkit.messageHandlers` / `window.GleapJSBridge`,
+    the host here is Omnis Studio's OBrowser, which speaks:
+
+      • host -> page :  Omnis 4GL calls  $callmethod("gleapDeliver", <payloadJson>)  -> window.gleapDeliver(s)
+      • page -> host :  window JS calls  jControl.callbackObject.sendMessageToFatClient(id, <json>)
+                        -> Omnis receives evControlEvent(pInfo.id, pInfo.data)
+
+    The .NET GleapOmnisClient produces/consumes those JSON strings; the Omnis glue only shuttles strings.
+
+    Because OBrowser's two-way bridge requires the loaded page to be an Omnis "HTML control" (a plain
+    external URL can only be displayed, not called back into), this file must be served/registered as an
+    Omnis html-control (see the Omnis-JSCBridge template referenced in the runbook). The bridge logic below
+    is framework-agnostic; the single Omnis binding point is `OmnisBridge.toHost` / `window.gleapDeliver`.
+  -->
+  <iframe id="gleapFrame" title="Gleap" allow="camera; microphone; autoplay; clipboard-read; clipboard-write"></iframe>
+
+  <script>
+    (function () {
+      "use strict";
+
+      // The Gleap widget frame origin. Defaults to production; override with ?frame=<origin> when self-hosting.
+      var FRAME_ORIGIN = "https://messenger-app.gleap.io";
+      try {
+        var q = new URLSearchParams(window.location.search).get("frame");
+        if (q) { FRAME_ORIGIN = q.replace(/\/+$/, ""); }
+      } catch (e) { /* older engines: keep the default */ }
+
+      // Message id used on the Omnis callback channel; the 4GL glue matches on it in evControlEvent.
+      var GLEAP_MESSAGE_ID = "gleap";
+
+      var frame = document.getElementById("gleapFrame");
+      // Point the iframe at the raw widget frame (NOT /appnew — this page *is* the wrapper).
+      frame.src = FRAME_ORIGIN;
+
+      // -------------------------------------------------------------------------------------------------
+      //  Omnis binding — the one place this page touches the Omnis html-control framework.
+      // -------------------------------------------------------------------------------------------------
+      var OmnisBridge = {
+        // Buffer page->host messages until Omnis has wired the control's callbackObject.
+        _pending: [],
+
+        // Send a widget->host JSON string to Omnis. Uses the documented OBrowser html-control callback;
+        // falls back to console when the page is opened outside Omnis (standalone smoke-testing).
+        toHost: function (json) {
+          var cb = (typeof jControl !== "undefined" && jControl && jControl.callbackObject)
+            ? jControl.callbackObject
+            : null;
+          if (cb && typeof cb.sendMessageToFatClient === "function") {
+            cb.sendMessageToFatClient(GLEAP_MESSAGE_ID, json);
+          } else if (typeof window.gleapOmnisTestSink === "function") {
+            window.gleapOmnisTestSink(json); // optional hook for standalone testing
+          } else {
+            this._pending.push(json); // Omnis not ready yet — flush on ready
+          }
+        },
+
+        flush: function () {
+          if (typeof jControl === "undefined" || !jControl || !jControl.callbackObject) { return; }
+          while (this._pending.length) {
+            jControl.callbackObject.sendMessageToFatClient(GLEAP_MESSAGE_ID, this._pending.shift());
+          }
+        }
+      };
+
+      // host -> page: Omnis calls this via $callmethod("gleapDeliver", <payloadJson>). The payload is the
+      // JSON string Gleap.Core emitted; forward it verbatim into the widget frame (which JSON.parses it).
+      window.gleapDeliver = function (payloadJson) {
+        if (payloadJson == null) { return; }
+        var text = typeof payloadJson === "string" ? payloadJson : JSON.stringify(payloadJson);
+        if (frame && frame.contentWindow) {
+          frame.contentWindow.postMessage(text, "*");
+        }
+      };
+
+      // Called by the Omnis html-control framework once the control/callback channel is live
+      // (mirrors JSCBridge's CONTROL_READY). Safe to call more than once.
+      window.gleapOmnisReady = function () { OmnisBridge.flush(); };
+
+      // page -> host: everything the widget frame posts up is forwarded to Omnis. Origin-checked to the
+      // widget frame, exactly like Gleap's /appnew wrapper guards its relay.
+      window.addEventListener("message", function (event) {
+        if (event.origin !== FRAME_ORIGIN) { return; }
+        if (frame && event.source !== frame.contentWindow) { return; }
+        var data = typeof event.data === "string" ? event.data : JSON.stringify(event.data);
+        OmnisBridge.toHost(data);
+      });
+
+      // If the framework was ready before this script ran, flush immediately.
+      OmnisBridge.flush();
+    })();
+  </script>
+</body>
+</html>

@@ -5,7 +5,7 @@ reporting, feature requests, surveys and more — for **Unity**, **.NET MAUI**, 
 Desktop (WPF/WebView2)**.
 
 > **Status: early access.** The platform-agnostic core is implemented, unit-tested
-> (129 tests, `-warnaserror` clean), and — the important part — **validated live against the real
+> (145 tests, `-warnaserror` clean), and — the important part — **validated live against the real
 > Gleap server and web widget**: the bridge handshake, `config`/`session`, messenger navigation,
 > feedback submit (`/bugs/v2`), and the banner/modal outbound protocol were all confirmed against the
 > live services. The host-side behaviour now **mirrors the native iOS/Android SDKs** (studied from
@@ -53,7 +53,7 @@ needs the **.NET 8 Desktop Runtime**; the MAUI binding needs the **`maui` worklo
 (`dotnet workload install maui`).
 
 ```bash
-dotnet test Gleap.sln                   # build + run the core tests (129)
+dotnet test Gleap.sln                   # build + run the core tests (145)
 dotnet build Gleap.sln -warnaserror     # quality gate (0 warnings)
 dotnet format Gleap.sln --verify-no-changes
 ```

@@ -59,6 +59,8 @@ public interface IGleapBackend
     void SetLanguage(string language);
     bool IsOpened();
     void ShowFeedbackButton(bool visible);
+    bool IsFeedbackButtonVisible { get; }
+    string FeedbackButtonPosition { get; }
     void SetDisableInAppNotifications(bool disable);
     void PreFillForm(IReadOnlyDictionary<string, object?> formData);
     void StartNetworkLogging();

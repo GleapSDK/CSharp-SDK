@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Gleap Omnis SDK — the platform layer that lets a native Omnis Studio (Windows) app host the
+    Gleap widget through Omnis' built-in CEF OBrowser control. It reuses Gleap.Core (the protocol
+    brain) verbatim and adds only the Omnis-specific seam: a COM-visible facade the Omnis 4GL glue
+    drives, an IWebViewChannel bridged to the OBrowser html-control, and a Win32 screenshot provider.
+
+    Ships as .NET Framework 4.8 (net48): it is on every modern Windows, so the customer needs no
+    separate runtime install, and it is COM-visible for classic regasm / reg-free-COM activation from
+    Omnis. Gleap.Core is netstandard2.0 and loads into net48 unchanged.
+
+    The net8.0 target exists so the platform-agnostic logic can be unit-tested on any OS (net48 cannot
+    run on macOS/Linux) and for hosts that prefer modern .NET. The customer deliverable is the net48 build.
+    Microsoft.NETFramework.ReferenceAssemblies lets the net48 target compile on non-Windows dev/CI machines.
+  -->
+
+  <PropertyGroup>
+    <TargetFrameworks>net48;net8.0</TargetFrameworks>
+    <AssemblyName>Gleap.Omnis</AssemblyName>
+    <RootNamespace>GleapSDK.Omnis</RootNamespace>
+    <Product>Gleap Omnis SDK</Product>
+    <Company>Gleap</Company>
+    <Description>Gleap SDK for native Omnis Studio (Windows) apps, hosted in the OBrowser CEF control.</Description>
+
+    <!-- COM-visible assembly. Individual types opt in via [ComVisible(true)]. -->
+    <ComVisible>false</ComVisible>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+
+    <!-- The bridge wrapper page ships alongside the DLL for the Omnis html-control. -->
+    <EnableDefaultContentItems>false</EnableDefaultContentItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Gleap.Core\Gleap.Core.csproj" />
+  </ItemGroup>
+
+  <!-- net48: build cross-platform via reference assemblies; use the framework GDI+/HTTP assemblies. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
+  <!-- net8.0: GDI+ ships as a package (Windows-only at runtime; the screenshot provider degrades gracefully). -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <PackageReference Include="System.Drawing.Common" Version="8.0.10" />
+  </ItemGroup>
+
+  <!-- The SDK is Windows-only by design; the net8.0 target is a cross-platform test/convenience build, so
+       the Windows-only GDI+ platform warning (CA1416) is not meaningful there. net48 has no such analyzer. -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The OBrowser html-control bridge page, copied next to the assembly. -->
+    <Content Include="web\gleap-omnis-bridge.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

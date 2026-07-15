@@ -81,7 +81,7 @@ public sealed class ManagedBackend : IGleapBackend
     private string? _lastScreenName;
     private string? _editedScreenshot;
     private string _language = "en";
-    private bool _feedbackButtonVisible;
+    private bool? _feedbackButtonVisibleOverride;
     private bool _inAppNotificationsDisabled;
     private IReadOnlyDictionary<string, object?>? _prefill;
     private IReadOnlyList<ActivationMethod> _activationMethods = System.Array.Empty<ActivationMethod>();
@@ -668,6 +668,14 @@ public sealed class ManagedBackend : IGleapBackend
 
         foreach (var action in response.Actions)
         {
+            // Honour SetDisableInAppNotifications: suppress in-app notification toasts. Banners, modals and
+            // surveys are outbound campaigns rather than in-app notifications, so they are unaffected —
+            // matching the native SDKs' disableInAppNotifications semantics.
+            if (_inAppNotificationsDisabled && action.ActionType == "notification")
+            {
+                continue;
+            }
+
             _events.Emit("outboundSent", new Dictionary<string, object?>
             {
                 ["actionType"] = action.ActionType,
@@ -896,7 +904,52 @@ public sealed class ManagedBackend : IGleapBackend
 
     public void SetLanguage(string language) => _language = language;
     public bool IsOpened() => _widgetOpen;
-    public void ShowFeedbackButton(bool visible) => _feedbackButtonVisible = visible;
+
+    /// <summary>The project's configured feedback-button position (flowConfig <c>feedbackButtonPosition</c>,
+    /// e.g. <c>BOTTOM_RIGHT</c>, <c>BOTTOM_LEFT</c>, <c>BUTTON_HIDE</c>), or an empty string when unset.
+    /// Host-rendered launchers read this to place (or hide) the button, matching the web/native SDKs.</summary>
+    public string FeedbackButtonPosition
+    {
+        get
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(_config?.FlowConfigJson ?? "{}");
+                var root = doc.RootElement;
+                return root.ValueKind == JsonValueKind.Object
+                    && root.TryGetProperty("feedbackButtonPosition", out var p)
+                    && p.ValueKind == JsonValueKind.String
+                    ? p.GetString() ?? string.Empty
+                    : string.Empty;
+            }
+            catch (JsonException)
+            {
+                return string.Empty;
+            }
+        }
+    }
+
+    /// <summary>Whether the feedback launcher button should currently be shown. Defaults to the project's
+    /// configured <see cref="FeedbackButtonPosition"/> (hidden when it is <c>BUTTON_HIDE</c>) and is
+    /// overridden at runtime by <see cref="ShowFeedbackButton"/>. Host-rendered launchers read this on
+    /// <c>initialized</c> and then react to the <c>feedbackButtonVisibilityUpdated</c> event.</summary>
+    public bool IsFeedbackButtonVisible =>
+        _feedbackButtonVisibleOverride ??
+        !string.Equals(FeedbackButtonPosition, "BUTTON_HIDE", System.StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Overrides the feedback launcher button's visibility at runtime (the JS SDK's
+    /// <c>showFeedbackButton</c>). Emits <c>feedbackButtonVisibilityUpdated</c> (a <see cref="bool"/>) when
+    /// the effective visibility changes, so a host-rendered launcher shows/hides itself.</summary>
+    public void ShowFeedbackButton(bool visible)
+    {
+        var wasVisible = IsFeedbackButtonVisible;
+        _feedbackButtonVisibleOverride = visible;
+        if (wasVisible != visible)
+        {
+            _events.Emit("feedbackButtonVisibilityUpdated", visible);
+        }
+    }
+
     public void SetDisableInAppNotifications(bool disable) => _inAppNotificationsDisabled = disable;
 
     public void PreFillForm(IReadOnlyDictionary<string, object?> formData)
