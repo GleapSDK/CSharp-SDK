@@ -7,6 +7,29 @@ namespace Gleap.Core.Tests;
 public class ConsoleLogBufferTests
 {
     [Fact]
+    public void Add_TruncatesOverlongEntries()
+    {
+        var buffer = new ConsoleLogBuffer(new FakeClock(), 100);
+
+        buffer.Add(new string('x', 20_000), LogLevel.Error);
+
+        // One dumped payload/stack trace must not dominate the report body (iOS caps at 10k + a marker).
+        var log = buffer.Snapshot().Single().Log;
+        Assert.Equal(10_000 + " [truncated]".Length, log.Length);
+        Assert.EndsWith(" [truncated]", log);
+    }
+
+    [Fact]
+    public void Add_LeavesNormalEntriesIntact()
+    {
+        var buffer = new ConsoleLogBuffer(new FakeClock(), 100);
+
+        buffer.Add("just a log line", LogLevel.Info);
+
+        Assert.Equal("just a log line", buffer.Snapshot().Single().Log);
+    }
+
+    [Fact]
     public void Add_StampsDateAndMapsLevel()
     {
         var clock = new FakeClock();

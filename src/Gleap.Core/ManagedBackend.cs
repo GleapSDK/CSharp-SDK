@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -147,6 +148,7 @@ public sealed class ManagedBackend : IGleapBackend
         LogEvent("sessionStarted", null);   // per session establishment, matching the native SDKs
         await _config.LoadAsync(_language, ct).ConfigureAwait(false);
         ApplyRemoteConfig();
+        _events.Emit("configLoaded", FlowConfigJson);   // iOS exposes configLoaded: too
 
         // Real-time channel (optional): once the session exists, connect the WebSocket so outbound
         // actions and the unread count arrive instantly instead of on the next poll tick.
@@ -199,6 +201,10 @@ public sealed class ManagedBackend : IGleapBackend
         catch (System.Exception ex)
         {
             _bridge.Send(new GleapBridgeMessage { Name = "feedback-sending-failed", Data = ex.Message });
+            // Also surface it to the host app: without this a submission failure was invisible to it,
+            // while both reference SDKs expose the callback (iOS feedbackSendingFailed:, JS
+            // error-while-sending).
+            _events.Emit("feedbackSendingFailed", ex.Message);
         }
     }
 
@@ -212,8 +218,11 @@ public sealed class ManagedBackend : IGleapBackend
             Severity.Medium => "MEDIUM",
             _ => "LOW"
         };
+        // Only keys explicitly set to true exclude anything. Taking every key regardless of value meant
+        // excludeData: {["screenshot"] = false} excluded the screenshot — the opposite of the request.
+        // iOS checks boolValue == YES and JS checks === true; the widget path here already got this right.
         var excludeKeys = excludeData != null
-            ? new HashSet<string>(excludeData.Keys)
+            ? new HashSet<string>(excludeData.Where(kv => kv.Value is true).Select(kv => kv.Key))
             : new HashSet<string> { "screenshot", "replays", "attachments" };
         var formData = new Dictionary<string, object?> { ["description"] = description };
 

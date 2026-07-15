@@ -32,6 +32,18 @@ public class GleapNotificationTests
         Assert.Equal("share-abc", n.ConversationShareToken);
     }
 
+    [Theory]
+    [InlineData("Bob Builder", "Hi Bob")]
+    [InlineData("tobias@gleap.io", "Hi tobias")]   // identified by email only
+    [InlineData("ada.lovelace@x.com", "Hi ada")]
+    [InlineData("bob+tag@x.com", "Hi bob")]
+    public void FromActionJson_FirstName_SplitsLikeTheReferenceSdks(string userName, string expected)
+    {
+        var n = GleapNotification.FromActionJson("""{"outbound":"o","data":{"text":"Hi {{name}}"}}""", userName);
+
+        Assert.Equal(expected, n!.Text);
+    }
+
     [Fact]
     public void FromActionJson_SubstitutesEmptyName_Cleanly()
     {

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -40,10 +41,14 @@ public sealed class WindowsMetadataProvider : IMetadataProvider
 
         meta["systemName"] = "Windows";
         meta["systemVersion"] = RuntimeInformation.OSDescription;
-        meta["releaseVersionNumber"] = Environment.OSVersion.Version.ToString();
         meta["deviceName"] = Environment.MachineName;
         meta["deviceModel"] = Environment.MachineName;
-        meta["buildVersionNumber"] = entry?.GetName().Version?.ToString() ?? "1.0.0";
+
+        // App version, NOT the OS version: iOS reports CFBundleShortVersionString here and the OS goes in
+        // systemVersion above. Reporting the Windows build made per-release triage impossible.
+        var appVersion = entry?.GetName().Version;
+        meta["releaseVersionNumber"] = appVersion?.ToString(3) ?? "1.0.0";
+        meta["buildVersionNumber"] = appVersion?.ToString() ?? "1.0.0";
 
         // App identity + build flavour (iOS: bundleID / buildMode).
         meta["bundleID"] = entry?.GetName().Name ?? "";
@@ -91,9 +96,10 @@ public sealed class WindowsMetadataProvider : IMetadataProvider
             {
                 return;
             }
-            // Megabytes, matching the native SDKs' disk reporting.
-            meta["totalDiskSpace"] = drive.TotalSize / (1024 * 1024);
-            meta["freeDiskSpace"] = drive.AvailableFreeSpace / (1024 * 1024);
+            // Gigabytes as strings, and `totalFreeDiskSpace` (not `freeDiskSpace`) — the key names and
+            // shapes iOS reports, which is what the dashboard renders.
+            meta["totalDiskSpace"] = Gigabytes(drive.TotalSize);
+            meta["totalFreeDiskSpace"] = Gigabytes(drive.AvailableFreeSpace);
         }
         catch (IOException) { /* disk unavailable — omit rather than fail */ }
         catch (UnauthorizedAccessException) { /* ditto */ }
@@ -107,19 +113,25 @@ public sealed class WindowsMetadataProvider : IMetadataProvider
             {
                 return;
             }
+            // iOS reports these as strings, not numbers/bools — match it so the dashboard renders them.
             if (status.BatteryLifePercent != BatteryPercentUnknown)
             {
-                meta["batteryLevel"] = Math.Round(status.BatteryLifePercent / 100.0, 2);   // 0..1, like iOS
+                meta["batteryLevel"] = status.BatteryLifePercent.ToString(CultureInfo.InvariantCulture);
             }
-            if (status.ACLineStatus != AcLineUnknown)
+            meta["phoneChargingStatus"] = status.ACLineStatus switch
             {
-                meta["phoneChargingStatus"] = status.ACLineStatus == 1;
-            }
-            meta["batterySaveMode"] = status.SystemStatusFlag == 1;
+                1 => status.BatteryLifePercent == 100 ? "Full" : "Charging",
+                0 => "Unplugged",
+                _ => "Unknown"
+            };
+            meta["batterySaveMode"] = (status.SystemStatusFlag == 1).ToString().ToLowerInvariant();
         }
         catch (DllNotFoundException) { /* not on Windows — omit */ }
         catch (EntryPointNotFoundException) { /* ditto */ }
     }
+
+    private static string Gigabytes(long bytes) =>
+        Math.Round(bytes / 1024.0 / 1024.0 / 1024.0, 2).ToString(CultureInfo.InvariantCulture);
 
     private const int SM_CXSCREEN = 0;
     private const int SM_CYSCREEN = 1;

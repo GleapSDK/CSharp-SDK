@@ -160,21 +160,25 @@ public sealed class GleapNotification
         }
     }
 
+    private static readonly char[] NameSeparators = { ' ', '@', '.', '+' };
+
     private static string? Str(JsonElement obj, string key) =>
         obj.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
     private static int Int(JsonElement obj, string key) =>
         obj.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out var i) ? i : 0;
 
+    /// <summary>First name for the <c>{{name}}</c> placeholder. Splits on space, <c>@</c>, <c>.</c> and
+    /// <c>+</c> like the reference SDKs, so a contact identified only by an email address renders as
+    /// "tobias" rather than "tobias@gleap.io".</summary>
     private static string? FirstName(string? fullName)
     {
         if (string.IsNullOrWhiteSpace(fullName))
         {
             return null;
         }
-        var trimmed = fullName!.Trim();
-        var space = trimmed.IndexOf(' ');
-        return space > 0 ? trimmed.Substring(0, space) : trimmed;
+        var parts = fullName!.Trim().Split(NameSeparators, System.StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length > 0 ? parts[0] : null;
     }
 
     private static string? Substitute(string? text, string? firstName)

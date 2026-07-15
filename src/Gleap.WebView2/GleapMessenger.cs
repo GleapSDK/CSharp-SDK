@@ -436,6 +436,12 @@ public class GleapMessenger : Grid, IDisposable
         _replayTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(intervalMs.Value) };
         _replayTimer.Tick += async (_, _) =>
         {
+            // Don't record the Gleap widget itself: iOS pauses replay capture while the messenger is open,
+            // otherwise the ring fills with frames of our own UI and evicts the ones that matter.
+            if (_isOpen)
+            {
+                return;
+            }
             try
             {
                 await _backend!.CaptureReplayFrameAsync().ConfigureAwait(true);
