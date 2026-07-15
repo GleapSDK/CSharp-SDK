@@ -76,6 +76,7 @@ public class GleapMessenger : Grid, IDisposable
     private Action<object?>? _onWidgetOpened;
     private Action<object?>? _onWidgetClosed;
     private Action<object?>? _onFeedbackButtonVisibilityChanged;
+    private Action<object?>? _onPlaySound;
     private Action<object?>? _onNotificationCountUpdated;
     private Action<object?>? _onOutboundSent;
 
@@ -406,6 +407,9 @@ public class GleapMessenger : Grid, IDisposable
             _onNotificationCountUpdated = count => OnUi(() => UpdateBadge(count));
             _onOutboundSent = d => OnUi(() => OnOutbound(d));
             _onFeedbackButtonVisibilityChanged = v => OnUi(() => SetLauncherVisible(v is true));
+            // Message arriving while the messenger is open — the notification card path plays its own.
+            _onPlaySound = _ => OnUi(PlayMessageSound);
+            Gleap.RegisterListener("playSound", _onPlaySound);
             Gleap.RegisterListener("widgetOpened", _onWidgetOpened);
             Gleap.RegisterListener("widgetClosed", _onWidgetClosed);
             Gleap.RegisterListener("feedbackButtonVisibilityChanged", _onFeedbackButtonVisibilityChanged);
@@ -723,6 +727,13 @@ public class GleapMessenger : Grid, IDisposable
         }
     }
 
+    /// <summary>Plays the incoming-message sound the widget asks for via <c>play-ping</c>.</summary>
+    private static void PlayMessageSound()
+    {
+        try { System.Media.SystemSounds.Asterisk.Play(); }
+        catch { /* audio is best-effort; never break the messenger over it */ }
+    }
+
     /// <summary>Shows/hides the launcher and its unread badge (<see cref="Gleap.ShowFeedbackButton"/> and
     /// the <c>BUTTON_NONE</c> config).</summary>
     private void SetLauncherVisible(bool visible)
@@ -819,6 +830,11 @@ public class GleapMessenger : Grid, IDisposable
             {
                 Gleap.RemoveListener("feedbackButtonVisibilityChanged", _onFeedbackButtonVisibilityChanged);
                 _onFeedbackButtonVisibilityChanged = null;
+            }
+            if (_onPlaySound != null)
+            {
+                Gleap.RemoveListener("playSound", _onPlaySound);
+                _onPlaySound = null;
             }
 
             _notifications?.Clear();

@@ -1,4 +1,5 @@
-﻿using Gleap.Core.Tests.Fakes;
+﻿using System.Text.Json;
+using Gleap.Core.Tests.Fakes;
 using GleapSDK.Bridge;
 using GleapSDK.Serialization;
 
@@ -6,6 +7,67 @@ namespace Gleap.Core.Tests;
 
 public class WebViewBridgeIncomingTests
 {
+    private static (WebViewBridge bridge, FakeWebViewChannel ch) NewBridge()
+    {
+        var ch = new FakeWebViewChannel();
+        return (new WebViewBridge(ch, new SystemTextJsonSerializer()), ch);
+    }
+
+    [Fact]
+    public void NotifyEvent_ForwardsEveryType_NotJustFlowStarted()
+    {
+        var (bridge, ch) = NewBridge();
+        var seen = new List<string>();
+        bridge.WidgetEventNotified += (type, _) => seen.Add(type);
+
+        ch.SimulateIncoming("{\"name\":\"notify-event\",\"data\":{\"type\":\"conversation-started\"}}");
+        ch.SimulateIncoming("{\"name\":\"notify-event\",\"data\":{\"type\":\"rating-sent\"}}");
+        ch.SimulateIncoming("{\"name\":\"notify-event\",\"data\":{\"type\":\"flow-started\"}}");
+
+        Assert.Equal(new[] { "conversation-started", "rating-sent", "flow-started" }, seen);
+    }
+
+    [Fact]
+    public void NotifyEvent_FlowStarted_CarriesItsPayload()
+    {
+        var (bridge, ch) = NewBridge();
+        JsonElement payload = default;
+        bridge.FeedbackFlowStarted += d => payload = d;
+
+        ch.SimulateIncoming("{\"name\":\"notify-event\",\"data\":{\"type\":\"flow-started\",\"data\":{\"flow\":\"bugreport\"}}}");
+
+        Assert.Contains("bugreport", payload.GetRawText());
+    }
+
+    [Fact]
+    public void OpenImage_RaisesUrl_FromStringOrObject()
+    {
+        var (bridge, ch) = NewBridge();
+        var urls = new List<string>();
+        bridge.OpenImageRequested += u => urls.Add(u);
+
+        ch.SimulateIncoming("{\"name\":\"open-image\",\"data\":\"https://img/a.png\"}");
+        ch.SimulateIncoming("{\"name\":\"open-image\",\"data\":{\"url\":\"https://img/b.png\"}}");
+
+        Assert.Equal(new[] { "https://img/a.png", "https://img/b.png" }, urls);
+    }
+
+    [Fact]
+    public void PlayPing_AndChecklistLoaded_AreRaised()
+    {
+        var (bridge, ch) = NewBridge();
+        var pinged = false;
+        JsonElement checklist = default;
+        bridge.PlayPingRequested += () => pinged = true;
+        bridge.ChecklistLoaded += d => checklist = d;
+
+        ch.SimulateIncoming("{\"name\":\"play-ping\"}");
+        ch.SimulateIncoming("{\"name\":\"checklist-loaded\",\"data\":{\"id\":\"cl1\"}}");
+
+        Assert.True(pinged);
+        Assert.Contains("cl1", checklist.GetRawText());
+    }
+
     private static WebViewBridge NewBridge(FakeWebViewChannel ch) =>
         new WebViewBridge(ch, new SystemTextJsonSerializer());
 

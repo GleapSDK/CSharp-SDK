@@ -11,7 +11,16 @@ public sealed partial class WebViewBridge
     /// <summary>(actionName, shareToken?)</summary>
     public event Action<string, string?>? CustomActionTriggered;
     public event Action<JsonElement>? FeedbackFlowStarted;
+    /// <summary>Raised on any "notify-event" — (type, data). The widget emits <c>flow-started</c>,
+    /// <c>conversation-started</c>, <c>rating-sent</c>, … ; the JS SDK re-emits them all.</summary>
+    public event Action<string, JsonElement>? WidgetEventNotified;
     public event Action<string>? OpenUrlRequested;
+    /// <summary>Raised on "open-image" — the user tapped an image/attachment in a conversation.</summary>
+    public event Action<string>? OpenImageRequested;
+    /// <summary>Raised on "play-ping" — the widget wants the message sound played.</summary>
+    public event Action? PlayPingRequested;
+    /// <summary>Raised on "checklist-loaded" — the widget surfaced a checklist.</summary>
+    public event Action<JsonElement>? ChecklistLoaded;
     public event Action<JsonElement>? SendFeedbackRequested;
     /// <summary>Raised on "collect-ticket-data" — the widget is asking for the current report data.</summary>
     public event System.Action? CollectTicketDataRequested;
@@ -63,10 +72,16 @@ public sealed partial class WebViewBridge
                 if (msg.Data.ValueKind == JsonValueKind.Object &&
                     msg.Data.TryGetProperty("type", out var type) &&
                     type.ValueKind == JsonValueKind.String &&
-                    type.GetString() == "flow-started")
+                    type.GetString() is { Length: > 0 } eventType)
                 {
                     var payload = msg.Data.TryGetProperty("data", out var d) ? d : default;
-                    FeedbackFlowStarted?.Invoke(payload);
+                    // Forward every type (the widget also emits conversation-started, rating-sent, …),
+                    // keeping the dedicated flow-started event for existing subscribers.
+                    WidgetEventNotified?.Invoke(eventType, payload);
+                    if (eventType == "flow-started")
+                    {
+                        FeedbackFlowStarted?.Invoke(payload);
+                    }
                 }
                 break;
 
@@ -106,7 +121,25 @@ public sealed partial class WebViewBridge
                 DrawingsCleanedUp?.Invoke();
                 break;
 
-                // frontend-tool-execute, cleanup-drawings, screenshot-updated -> handled in SP-0 Part 2.
+            case "open-image":
+                // The widget panel is narrow; without a host viewer, tapping an attachment does nothing.
+                var imageUrl = msg.Data.ValueKind == JsonValueKind.String
+                    ? msg.Data.GetString()
+                    : msg.Data.ValueKind == JsonValueKind.Object && msg.Data.TryGetProperty("url", out var u)
+                        && u.ValueKind == JsonValueKind.String ? u.GetString() : null;
+                if (!string.IsNullOrEmpty(imageUrl))
+                {
+                    OpenImageRequested?.Invoke(imageUrl!);
+                }
+                break;
+
+            case "play-ping":
+                PlayPingRequested?.Invoke();
+                break;
+
+            case "checklist-loaded":
+                ChecklistLoaded?.Invoke(msg.Data);
+                break;
         }
     }
 }

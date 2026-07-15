@@ -41,6 +41,9 @@ public static class GleapWebView2Host
         Gleap.UseBackend(backend);
         // Open external links the widget requests (help articles, etc.) in the system browser.
         backend.RegisterListener("openURL", url => OpenExternalUrl(url as string));
+        // Images/attachments tapped in a conversation: the messenger panel is far too narrow to show them,
+        // so hand them to the system viewer (the browser) instead of dropping the tap.
+        backend.RegisterListener("openImage", url => OpenExternalUrl(url as string));
         await backend.InitializeAsync(sdkKey, CancellationToken.None).ConfigureAwait(true);
 
         // Navigate only after the backend (and its WidgetBootstrapper) is listening, so the

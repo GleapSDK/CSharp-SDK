@@ -108,6 +108,10 @@ public sealed class ManagedBackend : IGleapBackend
             () => _lastScreenName);
     }
 
+    /// <summary>Raw JSON of a widget payload for listeners, or null when the widget sent none.</summary>
+    private static string? RawOrNull(JsonElement data) =>
+        data.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null ? null : data.GetRawText();
+
     private WebViewBridge Bridge => _bridge ?? throw new System.InvalidOperationException(
         "Gleap is not initialized. Call InitializeAsync before using the messenger.");
 
@@ -139,7 +143,20 @@ public sealed class ManagedBackend : IGleapBackend
         _bridge.OpenUrlRequested += url => _events.Emit("openURL", url);
         _bridge.ScreenshotUpdated += shot => _editedScreenshot = shot;
         _bridge.DrawingsCleanedUp += () => _editedScreenshot = null;   // revert to the original capture (iOS behavior)
-        _bridge.FeedbackFlowStarted += _ => _events.Emit("feedbackFlowStarted");
+        // Pass the flow payload through rather than dropping it (iOS hands it to its delegate).
+        _bridge.FeedbackFlowStarted += data => _events.Emit("feedbackFlowStarted", RawOrNull(data));
+        // Every other widget event type (conversation-started, rating-sent, …) is re-emitted under its own
+        // name, matching the JS SDK which forwards them all.
+        _bridge.WidgetEventNotified += (type, data) =>
+        {
+            if (type != "flow-started")
+            {
+                _events.Emit(type, RawOrNull(data));
+            }
+        };
+        _bridge.OpenImageRequested += url => _events.Emit("openImage", url);
+        _bridge.PlayPingRequested += () => _events.Emit("playSound");
+        _bridge.ChecklistLoaded += data => _events.Emit("checklistLoaded", RawOrNull(data));
         _bridge.CustomActionTriggered += (name, token) =>
             _events.Emit("customActionTriggered", new Dictionary<string, object?> { ["name"] = name, ["shareToken"] = token });
         _bridge.ToolExecutionRequested += _ => _events.Emit("toolExecution");
