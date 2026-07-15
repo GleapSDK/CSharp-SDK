@@ -319,7 +319,11 @@ public sealed class ManagedBackend : IGleapBackend
         string? shot;
         try
         {
-            shot = await _d.Screenshot.CaptureScreenshotAsync(ct).ConfigureAwait(false);
+            // Prefer the provider's cheaper replay capture (downscaled/compressed) when it offers one:
+            // a report carries up to 60 of these.
+            shot = _d.Screenshot is Capture.IReplayFrameProvider replayProvider
+                ? await replayProvider.CaptureReplayFrameAsync(ct).ConfigureAwait(false)
+                : await _d.Screenshot.CaptureScreenshotAsync(ct).ConfigureAwait(false);
         }
         catch (System.Exception)
         {
@@ -616,11 +620,33 @@ public sealed class ManagedBackend : IGleapBackend
                 contentType = fallbackContentType;
             }
             var payload = DecodeBase64(content.Substring(comma + 1));
-            return payload == null ? null : new UploadFile(payload, fileName, contentType);
+            // Keep the extension consistent with what the bytes actually are — a provider may hand us JPEG
+            // where the caller's default name says .png.
+            return payload == null ? null : new UploadFile(payload, MatchExtension(fileName, contentType), contentType);
         }
 
         var raw = DecodeBase64(content);
         return raw == null ? null : new UploadFile(raw, fileName, fallbackContentType);
+    }
+
+    /// <summary>Swaps a file name's extension to match its content type (jpeg/png/webp/gif); unknown types
+    /// keep the caller's name.</summary>
+    private static string MatchExtension(string fileName, string contentType)
+    {
+        var ext = contentType switch
+        {
+            "image/jpeg" => ".jpg",
+            "image/png" => ".png",
+            "image/webp" => ".webp",
+            "image/gif" => ".gif",
+            _ => null
+        };
+        if (ext == null)
+        {
+            return fileName;
+        }
+        var dot = fileName.LastIndexOf('.');
+        return (dot > 0 ? fileName.Substring(0, dot) : fileName) + ext;
     }
 
     private static byte[]? DecodeBase64(string value)

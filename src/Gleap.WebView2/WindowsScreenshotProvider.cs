@@ -17,8 +17,16 @@ namespace GleapSDK.WebView2;
 /// sensitive UI never leaves the device — in screenshots and, since replay frames go through this same
 /// provider, in session replays too.
 /// </summary>
-public sealed class WindowsScreenshotProvider : IScreenshotProvider
+public sealed class WindowsScreenshotProvider : IScreenshotProvider, IReplayFrameProvider
 {
+    /// <summary>Replay frames are downscaled and JPEG-compressed: a report carries up to 60 of them, and
+    /// full-size lossless captures of a desktop screen add up to a huge upload. The bug-report screenshot
+    /// deliberately stays lossless PNG — it is the artefact a developer zooms into to read a stack trace or
+    /// a form value, where JPEG ringing around text costs more than the bytes save. (iOS compresses both,
+    /// but its screens are a fraction of a desktop's and it optimizes for mobile bandwidth.)</summary>
+    private const double ReplayScale = 0.5;
+    private const int ReplayJpegQuality = 90;
+
     private static readonly Brush MaskBrush = CreateMaskBrush();
 
     private readonly Func<FrameworkElement?> _target;
@@ -33,7 +41,14 @@ public sealed class WindowsScreenshotProvider : IScreenshotProvider
         return brush;
     }
 
-    public Task<string?> CaptureScreenshotAsync(CancellationToken ct)
+    public Task<string?> CaptureScreenshotAsync(CancellationToken ct) =>
+        OnUiThread(() => Capture(scale: 1.0, asJpeg: false));
+
+    /// <inheritdoc />
+    public Task<string?> CaptureReplayFrameAsync(CancellationToken ct) =>
+        OnUiThread(() => Capture(ReplayScale, asJpeg: true));
+
+    private static Task<string?> OnUiThread(Func<string?> capture)
     {
         var dispatcher = Application.Current?.Dispatcher;
         if (dispatcher == null)
@@ -41,11 +56,11 @@ public sealed class WindowsScreenshotProvider : IScreenshotProvider
             return Task.FromResult<string?>(null);
         }
         return dispatcher.CheckAccess()
-            ? Task.FromResult(Capture())
-            : dispatcher.InvokeAsync(Capture).Task;
+            ? Task.FromResult(capture())
+            : dispatcher.InvokeAsync(capture).Task;
     }
 
-    private string? Capture()
+    private string? Capture(double scale, bool asJpeg)
     {
         var element = _target();
         if (element == null || element.ActualWidth < 1 || element.ActualHeight < 1)
@@ -64,11 +79,22 @@ public sealed class WindowsScreenshotProvider : IScreenshotProvider
             bitmap = ApplyMask(bitmap, censored, width, height);
         }
 
-        var encoder = new PngBitmapEncoder();
-        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        // Downscale after masking, so a censored region can never be reconstructed from a sharper source.
+        BitmapSource output = bitmap;
+        if (scale < 1.0)
+        {
+            bitmap.Freeze();
+            output = new TransformedBitmap(bitmap, new ScaleTransform(scale, scale));
+        }
+
+        BitmapEncoder encoder = asJpeg
+            ? new JpegBitmapEncoder { QualityLevel = ReplayJpegQuality }
+            : new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(output));
         using var stream = new MemoryStream();
         encoder.Save(stream);
-        return "data:image/png;base64," + Convert.ToBase64String(stream.ToArray());
+        var mime = asJpeg ? "image/jpeg" : "image/png";
+        return $"data:{mime};base64," + Convert.ToBase64String(stream.ToArray());
     }
 
     /// <summary>Re-composes the capture with opaque rectangles over the censored regions. Masking after
