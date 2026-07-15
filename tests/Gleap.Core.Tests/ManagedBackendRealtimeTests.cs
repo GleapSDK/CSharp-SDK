@@ -84,6 +84,47 @@ public class ManagedBackendRealtimeTests
         Assert.False(fired);
     }
 
+    private const string ChecklistFrame = """
+    {"name":"checklist","data":{
+      "id":"cl-1","outboundId":"ob-1","status":"active",
+      "completedStepsBefore":["s1"],"completedSteps":["s1","s2"],
+      "steps":[{"id":"s1","title":"One"},{"id":"s2","title":"Two"},{"id":"s3","title":"Three"}]
+    }}
+    """;
+
+    [Fact]
+    public async Task Realtime_ChecklistFrame_EmitsUpdatedAndStepCompleted()
+    {
+        var (backend, _, _, rt) = await NewInitializedAsync();
+        object? updated = null;
+        var stepEvents = new List<object?>();
+        backend.RegisterListener("checklistUpdated", d => updated = d);
+        backend.RegisterListener("checklistStepCompleted", d => stepEvents.Add(d));
+
+        rt.Emit(ChecklistFrame);
+
+        Assert.Contains("cl-1", JsonSerializer.Serialize(updated));
+        // Only s2 is newly completed — s1 was already done (the JS re-fire bug is not ported).
+        var step = Assert.Single(stepEvents);
+        var json = JsonSerializer.Serialize(step);
+        Assert.Contains("s2", json);
+        Assert.DoesNotContain("\"stepId\":\"s1\"", json);
+    }
+
+    [Fact]
+    public async Task Realtime_ChecklistFrame_EmitsCompleted_OnlyWhenDone()
+    {
+        var (backend, _, _, rt) = await NewInitializedAsync();
+        var completed = 0;
+        backend.RegisterListener("checklistCompleted", _ => completed++);
+
+        rt.Emit(ChecklistFrame);                                   // status active -> no completion
+        Assert.Equal(0, completed);
+
+        rt.Emit(ChecklistFrame.Replace("\"status\":\"active\"", "\"status\":\"done\""));
+        Assert.Equal(1, completed);
+    }
+
     [Fact]
     public async Task Realtime_ReconnectsOnClearIdentity()
     {

@@ -670,11 +670,59 @@ public sealed class ManagedBackend : IGleapBackend
             {
                 ProcessUpdate(PingResponse.Parse(data));
             }
-            // Other frames (e.g. "checklist") are rendered by the widget web app; no host action yet.
+            else if (name == "checklist" && root.TryGetProperty("data", out var checklistData))
+            {
+                ProcessChecklistUpdate(GleapChecklistUpdate.FromFrameData(checklistData));
+            }
         }
         catch (JsonException)
         {
             // Ignore malformed / non-JSON frames (e.g. keepalive echoes).
+        }
+    }
+
+    /// <summary>Raises the live-checklist events for a server <c>checklist</c> frame: the raw progress
+    /// update, one event per step completed by this update, and a completion event once every step is done.
+    /// Not gated on the widget being open (matching the server/JS behaviour).</summary>
+    private void ProcessChecklistUpdate(GleapChecklistUpdate? update)
+    {
+        if (update == null)
+        {
+            return;
+        }
+
+        _events.Emit("checklistUpdated", new Dictionary<string, object?>
+        {
+            ["checklistId"] = update.ChecklistId,
+            ["outboundId"] = update.OutboundId,
+            ["status"] = update.Status,
+            ["completedSteps"] = update.CompletedSteps,
+            ["totalSteps"] = update.Steps.Count
+        });
+
+        foreach (var step in update.NewlyCompletedSteps())
+        {
+            _events.Emit("checklistStepCompleted", new Dictionary<string, object?>
+            {
+                ["checklistId"] = update.ChecklistId,
+                ["outboundId"] = update.OutboundId,
+                ["stepId"] = step.Id,
+                ["stepIndex"] = step.Index,
+                ["stepTitle"] = step.Title,
+                ["completedSteps"] = update.CompletedSteps,
+                ["status"] = update.Status
+            });
+        }
+
+        if (update.IsCompleted)
+        {
+            _events.Emit("checklistCompleted", new Dictionary<string, object?>
+            {
+                ["checklistId"] = update.ChecklistId,
+                ["outboundId"] = update.OutboundId,
+                ["completedSteps"] = update.CompletedSteps,
+                ["status"] = update.Status
+            });
         }
     }
 
