@@ -250,7 +250,8 @@ public sealed class ManagedBackend : IGleapBackend
 
     /// <summary>Pushes a periodically captured screenshot into the bounded replay ring
     /// (platform host owns the timer cadence).</summary>
-    public void AddReplayFrame(string base64) => _replay.AddFrame(base64);
+    public void AddReplayFrame(string base64) =>
+        _replay.AddFrame(base64, _lastScreenName ?? "", NowStamp());
 
     /// <summary>Captures one replay frame from the app surface (via the screenshot provider) and pushes it
     /// into the replay ring. The platform host drives the cadence from <see cref="ReplayIntervalMs"/>.
@@ -272,9 +273,12 @@ public sealed class ManagedBackend : IGleapBackend
         }
         if (shot != null)
         {
-            _replay.AddFrame(shot);
+            _replay.AddFrame(shot, _lastScreenName ?? "", NowStamp());
         }
     }
+
+    private string NowStamp() =>
+        _clock.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>Replay capture interval in milliseconds when the project enabled session replays
     /// (flowConfig <c>enableReplays</c>), else null. The platform host uses this to decide whether and
@@ -484,12 +488,14 @@ public sealed class ManagedBackend : IGleapBackend
         }
 
         var files = new List<UploadFile>();
+        var kept = new List<Capture.ReplayFrame>();   // parallel to files, so urls line up with their frame
         foreach (var frame in frames)
         {
-            var decoded = DecodeUpload(frame, "replay.png", "image/png");
+            var decoded = DecodeUpload(frame.Base64, "replay.png", "image/png");
             if (decoded != null)
             {
                 files.Add(decoded);
+                kept.Add(frame);
             }
         }
         if (files.Count == 0)
@@ -511,10 +517,26 @@ public sealed class ManagedBackend : IGleapBackend
             return null;
         }
 
+        // frames are objects, not bare urls: the native SDKs send {screenname, url, date, interactions}
+        // and the replay viewer renders the screen name and timestamp next to each frame.
+        var built = new List<object?>();
+        for (var i = 0; i < urls.Count && i < kept.Count; i++)
+        {
+            built.Add(new Dictionary<string, object?>
+            {
+                ["url"] = urls[i],
+                ["screenname"] = kept[i].ScreenName,
+                ["date"] = kept[i].Date,
+                // iOS records touch coordinates here; a desktop capture has no equivalent, so the key is
+                // present but empty rather than fabricated.
+                ["interactions"] = System.Array.Empty<object>()
+            });
+        }
+
         return new Dictionary<string, object?>
         {
             ["interval"] = ReplayIntervalMs ?? _replay.IntervalMs,
-            ["frames"] = urls
+            ["frames"] = built
         };
     }
 
