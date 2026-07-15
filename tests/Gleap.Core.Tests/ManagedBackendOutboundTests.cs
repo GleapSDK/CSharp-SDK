@@ -78,17 +78,69 @@ public class ManagedBackendOutboundTests
         Assert.Contains("#123456", json);
     }
 
+    // The server has no "survey" actionType: for a survey outbound it puts the flow's own action id in
+    // actionType, with `format` alongside it. These tests use that real shape.
+
     [Fact]
-    public async Task Poll_AutoStartsSurvey()
+    public async Task Poll_AutoStartsSurvey_UsingActionTypeAsFlowId()
     {
         var (backend, ch, http) = await NewInitializedAsync();
         ch.SimulateIncoming("{\"name\":\"ping\"}");
         http.Responses.Enqueue(new HttpResult(200,
-            "{\"a\":[{\"actionType\":\"survey\",\"outbound\":\"ob1\",\"flow\":\"s1\"}],\"u\":0}"));
+            "{\"a\":[{\"actionType\":\"6813abc\",\"outbound\":\"ob1\",\"format\":\"survey\"}],\"u\":0}"));
 
         await backend.PollOutboundOnceAsync(CancellationToken.None);
 
-        Assert.Contains(ch.ExecutedScripts, s => s.Contains("start-survey"));
+        var script = Assert.Single(ch.ExecutedScripts, s => s.Contains("start-survey"));
+        Assert.Contains("6813abc", script);          // actionType IS the flow id
+        Assert.Contains("\\\"format\\\":\\\"survey\\\"", script.Replace("\"", "\\\""));
+    }
+
+    [Fact]
+    public async Task Poll_AutoStartsSurvey_HonorsSurveyFullFormat()
+    {
+        var (backend, ch, http) = await NewInitializedAsync();
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+        http.Responses.Enqueue(new HttpResult(200,
+            "{\"a\":[{\"actionType\":\"6813abc\",\"outbound\":\"ob1\",\"format\":\"survey_full\"}],\"u\":0}"));
+
+        await backend.PollOutboundOnceAsync(CancellationToken.None);
+
+        Assert.Contains(ch.ExecutedScripts, s => s.Contains("start-survey") && s.Contains("survey_full"));
+    }
+
+    [Theory]
+    [InlineData("notification")]
+    [InlineData("banner")]
+    [InlineData("modal")]
+    [InlineData("tour")]
+    public async Task Poll_DoesNotStartSurvey_ForHostRenderedOrOutOfScopeActions(string actionType)
+    {
+        var (backend, ch, http) = await NewInitializedAsync();
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+        http.Responses.Enqueue(new HttpResult(200,
+            $"{{\"a\":[{{\"actionType\":\"{actionType}\",\"outbound\":\"ob1\"}}],\"u\":0}}"));
+
+        await backend.PollOutboundOnceAsync(CancellationToken.None);
+
+        Assert.DoesNotContain(ch.ExecutedScripts, s => s.Contains("start-survey"));
+    }
+
+    [Fact]
+    public async Task Poll_DoesNotDispatchActions_WhileWidgetOpen()
+    {
+        var (backend, ch, http) = await NewInitializedAsync();
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+        backend.Open();                       // widget open -> outbound must not hijack the screen
+        object? unread = null;
+        backend.RegisterListener("notificationCountUpdated", d => unread = d);
+        http.Responses.Enqueue(new HttpResult(200,
+            "{\"a\":[{\"actionType\":\"6813abc\",\"outbound\":\"ob1\",\"format\":\"survey\"}],\"u\":4}"));
+
+        await backend.PollOutboundOnceAsync(CancellationToken.None);
+
+        Assert.DoesNotContain(ch.ExecutedScripts, s => s.Contains("start-survey"));
+        Assert.Equal(4, unread);              // ...but the unread count still applies (iOS behaviour)
     }
 
     [Fact]

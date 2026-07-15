@@ -634,7 +634,16 @@ public sealed class ManagedBackend : IGleapBackend
     /// Banner/modal/notification actions are surfaced via <c>outboundSent</c> for the host to render.</summary>
     private void ProcessUpdate(PingResponse response)
     {
+        // The unread count always applies, even while the widget is open (iOS updates it outside its gate).
         _events.Emit("notificationCountUpdated", response.UnreadCount);
+
+        // Outbound actions are only dispatched while the widget is closed, matching iOS, which wraps its
+        // whole action loop in `if (![Gleap isOpened])`. Without this an outbound survey could hijack an
+        // open conversation.
+        if (_widgetOpen)
+        {
+            return;
+        }
 
         foreach (var action in response.Actions)
         {
@@ -646,21 +655,37 @@ public sealed class ManagedBackend : IGleapBackend
                 ["data"] = action.Data.ValueKind == JsonValueKind.Undefined ? null : action.Data.GetRawText()
             });
 
-            if (action.ActionType == "survey")
+            switch (action.ActionType)
             {
-                var flow = action.Data.TryGetProperty("flow", out var f) && f.ValueKind == JsonValueKind.String
-                    ? f.GetString()! : action.OutboundId ?? "";
-                Bridge.Send(WidgetCommands.StartSurvey(flow, SurveyFormat.Survey));
+                case "":
+                    break;
+                case "notification":
+                case "banner":
+                case "modal":
+                    // Surfaced via outboundSent above; the platform host renders these.
+                    break;
+                case "tour":
+                    // Product tours are rendered by the web SDK and are out of scope here. Explicitly
+                    // ignored so they never fall through and get started as a survey (which iOS does).
+                    break;
+                default:
+                    // Everything else IS a survey / feedback flow. There is no "survey" actionType: the
+                    // server puts the flow's own action id in actionType and the format alongside it
+                    // (Server outboundactions/controller.ts). Both references dispatch this the same way,
+                    // as an else-fallthrough passing actionType as the flow id.
+                    Bridge.Send(WidgetCommands.StartSurvey(action.ActionType, ReadSurveyFormat(action.Data)));
+                    break;
             }
-            else if (action.ActionType == "feedbackflow")
-            {
-                var flow = action.Data.TryGetProperty("flow", out var f) && f.ValueKind == JsonValueKind.String
-                    ? f.GetString()! : action.OutboundId ?? "";
-                Bridge.Send(WidgetCommands.StartClassicForm(flow, showBackButton: true));
-            }
-            // notification / banner / modal: surfaced via outboundSent; rendering is the platform host's job.
         }
     }
+
+    /// <summary>Reads the outbound action's <c>format</c> (a sibling of <c>actionType</c>, not part of
+    /// <c>data</c>); anything other than <c>survey_full</c> is the standard survey card.</summary>
+    private static SurveyFormat ReadSurveyFormat(JsonElement action) =>
+        action.TryGetProperty("format", out var f) && f.ValueKind == JsonValueKind.String
+            && f.GetString() == "survey_full"
+                ? SurveyFormat.SurveyFull
+                : SurveyFormat.Survey;
 
     /// <summary>Parses a WebSocket frame and dispatches <c>update</c> frames through <see cref="ProcessUpdate"/>.
     /// Runs on the realtime channel's background thread; event handlers marshal to their own thread.</summary>
