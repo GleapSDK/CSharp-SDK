@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text.Json;
@@ -55,7 +56,12 @@ public class GleapMessenger : Grid, IDisposable
     private DispatcherTimer? _pollTimer;
     private DispatcherTimer? _replayTimer;
     private DispatcherTimer? _pageTimer;
+    private DispatcherTimer? _initRetryTimer;
+    private int _initAttempts;
     private string? _lastPageName;
+
+    private const double InitRetryBaseSeconds = 5;
+    private const double InitRetryCeilingSeconds = 60;
     private ManagedBackend? _backend;
     private bool _initializing;
     private bool _isOpen;
@@ -241,15 +247,59 @@ public class GleapMessenger : Grid, IDisposable
     {
         if (_backend == null && !_initializing && !string.IsNullOrEmpty(SdkKey))
         {
-            try
-            {
-                await InitializeAsync().ConfigureAwait(true);
-            }
-            catch
-            {
-                // Offline / bad key — the launcher stays; opening will surface the failure again.
-            }
+            await TryInitializeAsync().ConfigureAwait(true);
         }
+    }
+
+    /// <summary>Initializes, and on a transient failure schedules a retry. Desktop apps run for hours, so
+    /// being offline for the few seconds around startup must not disable Gleap for the whole process
+    /// lifetime — which is what happened before, since nothing ever retried.</summary>
+    private async Task TryInitializeAsync()
+    {
+        try
+        {
+            await InitializeAsync().ConfigureAwait(true);
+            _initRetryTimer?.Stop();
+            _initRetryTimer = null;
+            _initAttempts = 0;
+        }
+        catch (GleapSDK.Http.GleapApiException ex) when (ex.StatusCode == 429)
+        {
+            // Rate limited: retrying only makes it worse. The next open() still tries again.
+        }
+        catch (GleapSDK.Http.GleapApiException ex) when (ex.StatusCode is >= 400 and < 500)
+        {
+            // Bad key / rejected project — retrying cannot fix it.
+            Debug.WriteLine("Gleap: initialization rejected (" + ex.StatusCode + "); not retrying.");
+        }
+        catch
+        {
+            ScheduleInitRetry();   // offline or a transient server error
+        }
+    }
+
+    /// <summary>Retries initialization with exponential backoff (5s doubling to a 60s ceiling).</summary>
+    private void ScheduleInitRetry()
+    {
+        if (_disposed || _backend != null)
+        {
+            return;
+        }
+        _initAttempts++;
+        var seconds = Math.Min(InitRetryCeilingSeconds, InitRetryBaseSeconds * Math.Pow(2, _initAttempts - 1));
+
+        _initRetryTimer?.Stop();
+        _initRetryTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(seconds) };
+        _initRetryTimer.Tick += async (_, _) =>
+        {
+            _initRetryTimer?.Stop();
+            if (_disposed || _backend != null || _initializing)
+            {
+                return;
+            }
+            await TryInitializeAsync().ConfigureAwait(true);
+        };
+        _initRetryTimer.Start();
     }
 
     /// <summary>Toggles the messenger open/closed (what the launcher button does).</summary>
@@ -740,6 +790,8 @@ public class GleapMessenger : Grid, IDisposable
             _replayTimer = null;
             _pageTimer?.Stop();
             _pageTimer = null;
+            _initRetryTimer?.Stop();
+            _initRetryTimer = null;
 
             // Unhook the facade listeners so the disposed control isn't kept alive by the backend.
             if (_onWidgetOpened != null)
