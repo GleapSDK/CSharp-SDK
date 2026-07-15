@@ -17,7 +17,8 @@ public static class FeedbackAssembler
         ISet<string> excludeKeys,
         IReadOnlyList<IReadOnlyDictionary<string, object?>>? attachments = null,
         string? screenshotUrl = null,
-        IReadOnlyDictionary<string, object?>? replay = null)
+        IReadOnlyDictionary<string, object?>? replay = null,
+        string? spamToken = null)
     {
         var body = new Dictionary<string, object?>();
         foreach (var kv in ticketData)
@@ -61,6 +62,17 @@ public static class FeedbackAssembler
         if (replay != null)
         {
             body["replay"] = replay;
+        }
+        if (!string.IsNullOrEmpty(spamToken))
+        {
+            body["spamToken"] = spamToken;
+        }
+
+        // Omit tags entirely when there are none, like both references — an empty array is not the same
+        // as "no tags" to the server.
+        if (body.TryGetValue("tags", out var tags) && tags is ICollection<string> { Count: 0 })
+        {
+            body.Remove("tags");
         }
 
         foreach (var key in excludeKeys)

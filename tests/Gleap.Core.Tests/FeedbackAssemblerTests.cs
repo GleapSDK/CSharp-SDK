@@ -5,6 +5,49 @@ namespace Gleap.Core.Tests;
 public class FeedbackAssemblerTests
 {
     [Fact]
+    public void Build_OmitsTags_WhenEmpty()
+    {
+        var ticketData = new Dictionary<string, object?> { ["tags"] = new List<string>() };
+
+        var body = FeedbackAssembler.Build(
+            ticketData, new Dictionary<string, object?>(), "BUG", null, false, new HashSet<string>());
+
+        // An empty array is not the same as "no tags"; both references omit the key.
+        Assert.False(body.ContainsKey("tags"));
+    }
+
+    [Fact]
+    public void Build_KeepsTags_WhenPresent()
+    {
+        var ticketData = new Dictionary<string, object?> { ["tags"] = new List<string> { "vip" } };
+
+        var body = FeedbackAssembler.Build(
+            ticketData, new Dictionary<string, object?>(), "BUG", null, false, new HashSet<string>());
+
+        Assert.True(body.ContainsKey("tags"));
+    }
+
+    [Fact]
+    public void Build_IncludesSpamToken_WhenProvided()
+    {
+        var body = FeedbackAssembler.Build(
+            new Dictionary<string, object?>(), new Dictionary<string, object?>(), "BUG", null, false,
+            new HashSet<string>(), spamToken: "tok-1");
+
+        Assert.Equal("tok-1", body["spamToken"]);
+    }
+
+    [Fact]
+    public void Build_OmitsSpamToken_WhenAbsent()
+    {
+        var body = FeedbackAssembler.Build(
+            new Dictionary<string, object?>(), new Dictionary<string, object?>(), "BUG", null, false,
+            new HashSet<string>());
+
+        Assert.False(body.ContainsKey("spamToken"));
+    }
+
+    [Fact]
     public void Build_MergesTypeFormDataAndTicketData()
     {
         var ticketData = new Dictionary<string, object?>

@@ -42,10 +42,19 @@ public sealed class SessionManager
         }
     }
 
-    /// <summary>POST /sessions/identify, upgrading the anonymous session to an identified user.</summary>
+    /// <summary>
+    /// POST /sessions/identify, upgrading the anonymous session to an identified user. Skips the call when
+    /// the same user is already identified with the same data — apps commonly call identifyContact on every
+    /// screen, and the endpoint is rate-limited server-side. Both references gate this the same way
+    /// (iOS sessionUpgradeWithDataNeeded, JS checkIfSessionNeedsUpdate).
+    /// </summary>
     public async Task IdentifyAsync(string userId, GleapUserProperty data, string? userHash, CancellationToken ct)
     {
         data.UserId = userId;
+        if (IsIdentified && !IdentityChanged(data))
+        {
+            return;
+        }
         var res = await _api.IdentifyAsync(userId, data, userHash, GleapId, GleapHash, ct).ConfigureAwait(false);
         if (!string.IsNullOrEmpty(res.GleapId))
         {
@@ -57,6 +66,53 @@ public sealed class SessionManager
 
         Identity = data;
         IsIdentified = true;
+    }
+
+    /// <summary>Whether <paramref name="data"/> differs from the identity we already sent. Compared
+    /// field-by-field rather than by reference: callers typically build a fresh GleapUserProperty each
+    /// time.</summary>
+    private bool IdentityChanged(GleapUserProperty data)
+    {
+        var current = Identity;
+        if (current == null)
+        {
+            return true;
+        }
+        return current.UserId != data.UserId
+            || current.Name != data.Name
+            || current.Email != data.Email
+            || current.Phone != data.Phone
+            || current.Plan != data.Plan
+            || current.CompanyName != data.CompanyName
+            || current.CompanyId != data.CompanyId
+            || current.Avatar != data.Avatar
+            || current.Lang != data.Lang
+            || current.Value != data.Value
+            || current.Sla != data.Sla
+            // customData is an open bag; compare by content rather than assuming reference equality.
+            || !SameCustomData(current.CustomData, data.CustomData);
+    }
+
+    private static bool SameCustomData(
+        System.Collections.Generic.Dictionary<string, object>? a,
+        System.Collections.Generic.Dictionary<string, object>? b)
+    {
+        if (a == null || b == null)
+        {
+            return a == null && b == null;
+        }
+        if (a.Count != b.Count)
+        {
+            return false;
+        }
+        foreach (var kv in a)
+        {
+            if (!b.TryGetValue(kv.Key, out var other) || !Equals(kv.Value, other))
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     /// <summary>POST /sessions/partialupdate for the current identified (or guest) session.</summary>

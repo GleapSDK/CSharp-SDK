@@ -79,6 +79,7 @@ public sealed class ManagedBackend : IGleapBackend
     private readonly SessionDataCollector _collector;
     private readonly GleapEventDispatcher _events = new();
     private bool _widgetOpen;
+    private bool _sendingFeedback;
     private string? _lastScreenName;
     private string? _editedScreenshot;
     /// <summary>Widget/config language. Defaults to the OS UI language (iOS uses
@@ -180,11 +181,22 @@ public sealed class ManagedBackend : IGleapBackend
 
     private async Task HandleSendFeedbackAsync(JsonElement data)
     {
+        // The widget can fire send-feedback again while the first submit is still uploading; without a
+        // guard that produces duplicate tickets (JS keeps the same `sendingFeedback` latch).
+        if (_sendingFeedback)
+        {
+            return;
+        }
+        _sendingFeedback = true;
+
         var formData = ReadObject(data, "formData");
         var action = data.ValueKind == JsonValueKind.Object && data.TryGetProperty("action", out var a) ? a : default;
         var type = action.ValueKind == JsonValueKind.Object && action.TryGetProperty("feedbackType", out var ft)
             && ft.ValueKind == JsonValueKind.String ? ft.GetString()! : "BUG";
         var excludeKeys = ReadExcludeKeys(action);
+        // Anti-spam token the widget computes; relayed verbatim like both references.
+        var spamToken = data.ValueKind == JsonValueKind.Object && data.TryGetProperty("spamToken", out var st)
+            && st.ValueKind == JsonValueKind.String ? st.GetString() : null;
 
         try
         {
@@ -210,9 +222,11 @@ public sealed class ManagedBackend : IGleapBackend
 
             var body = FeedbackAssembler.Build(
                 _collector.BuildTicketData(), formData, type, null, false, excludeKeys, attachments,
-                screenshotUrl: screenshotUrl, replay: replay);
+                screenshotUrl: screenshotUrl, replay: replay, spamToken: spamToken);
             var response = await _api.SubmitBugAsync(body, _session.GleapId, _session.GleapHash, default).ConfigureAwait(false);
-            _bridge.Send(new GleapBridgeMessage { Name = "feedback-sent", Data = new Dictionary<string, object?> { ["response"] = response } });
+            // The widget expects the parsed response object as `data`, not a string-encoded copy wrapped in
+            // { response: … } — post-submit UI reading data.<field> would otherwise break.
+            _bridge.Send(new GleapBridgeMessage { Name = "feedback-sent", Data = ParseOrNull(response) });
             _events.Emit("feedbackSent", response);
         }
         catch (System.Exception ex)
@@ -222,6 +236,29 @@ public sealed class ManagedBackend : IGleapBackend
             // while both reference SDKs expose the callback (iOS feedbackSendingFailed:, JS
             // error-while-sending).
             _events.Emit("feedbackSendingFailed", ex.Message);
+        }
+        finally
+        {
+            _sendingFeedback = false;
+        }
+    }
+
+    /// <summary>Parses an API response body so it can be forwarded to the widget verbatim as an object;
+    /// null when the body is empty or not JSON.</summary>
+    private static JsonElement? ParseOrNull(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+        try
+        {
+            using var doc = JsonDocument.Parse(json!);
+            return doc.RootElement.Clone();
+        }
+        catch (JsonException)
+        {
+            return null;
         }
     }
 
