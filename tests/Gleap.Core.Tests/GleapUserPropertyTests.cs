@@ -34,7 +34,6 @@ public class GleapUserPropertyTests
     {
         Assert.Equal(3, System.Enum.GetValues<Severity>().Length);
         Assert.Equal(3, System.Enum.GetValues<LogLevel>().Length);
-        Assert.Equal(2, System.Enum.GetValues<ActivationMethod>().Length);
         Assert.Equal(2, System.Enum.GetValues<SurveyFormat>().Length);
     }
 }

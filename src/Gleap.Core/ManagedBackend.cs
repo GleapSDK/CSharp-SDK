@@ -81,10 +81,9 @@ public sealed class ManagedBackend : IGleapBackend
     private string? _lastScreenName;
     private string? _editedScreenshot;
     private string _language = "en";
-    private bool _feedbackButtonVisible;
+    private bool _feedbackButtonVisible = true;
     private bool _inAppNotificationsDisabled;
     private IReadOnlyDictionary<string, object?>? _prefill;
-    private IReadOnlyList<ActivationMethod> _activationMethods = System.Array.Empty<ActivationMethod>();
     private System.Collections.Generic.IReadOnlyList<GleapSDK.Models.AITool> _aiTools = System.Array.Empty<GleapSDK.Models.AITool>();
 
     /// <summary>The most recently started send-feedback round-trip; exposed so tests can await it.</summary>
@@ -896,8 +895,23 @@ public sealed class ManagedBackend : IGleapBackend
 
     public void SetLanguage(string language) => _language = language;
     public bool IsOpened() => _widgetOpen;
-    public void ShowFeedbackButton(bool visible) => _feedbackButtonVisible = visible;
+    /// <summary>Shows or hides the platform host's launcher button. Raises
+    /// <c>feedbackButtonVisibilityChanged</c> so the host can apply it immediately.</summary>
+    public void ShowFeedbackButton(bool visible)
+    {
+        _feedbackButtonVisible = visible;
+        _events.Emit("feedbackButtonVisibilityChanged", visible);
+    }
+
+    /// <summary>Whether the launcher button should currently be shown (default true).</summary>
+    public bool IsFeedbackButtonVisible => _feedbackButtonVisible;
+
     public void SetDisableInAppNotifications(bool disable) => _inAppNotificationsDisabled = disable;
+
+    /// <summary>Whether in-app notification preview cards are suppressed. Hosts check this before
+    /// rendering a <c>notification</c> outbound action. Note this only suppresses the card: a checklist
+    /// configured to pop in the widget still opens, matching the native SDKs.</summary>
+    public bool InAppNotificationsDisabled => _inAppNotificationsDisabled;
 
     public void PreFillForm(IReadOnlyDictionary<string, object?> formData)
     {
@@ -909,7 +923,6 @@ public sealed class ManagedBackend : IGleapBackend
     public void StopNetworkLogging() => _networkLog.Enabled = false;
     public void EnableDebugConsoleLog() => _consoleLog.Enabled = true;
     public void DisableConsoleLog() => _consoleLog.Enabled = false;
-    public void SetActivationMethods(ActivationMethod[] activationMethods) => _activationMethods = activationMethods;
 
     public void SetAiTools(GleapSDK.Models.AITool[] tools)
     {

@@ -69,6 +69,7 @@ public class GleapMessenger : Grid, IDisposable
     // and these lambdas capture `this`, so leaving them registered leaks the disposed control.
     private Action<object?>? _onWidgetOpened;
     private Action<object?>? _onWidgetClosed;
+    private Action<object?>? _onFeedbackButtonVisibilityChanged;
     private Action<object?>? _onNotificationCountUpdated;
     private Action<object?>? _onOutboundSent;
 
@@ -354,8 +355,10 @@ public class GleapMessenger : Grid, IDisposable
             _onWidgetClosed = _ => OnUi(HideMessenger);
             _onNotificationCountUpdated = count => OnUi(() => UpdateBadge(count));
             _onOutboundSent = d => OnUi(() => OnOutbound(d));
+            _onFeedbackButtonVisibilityChanged = v => OnUi(() => SetLauncherVisible(v is true));
             Gleap.RegisterListener("widgetOpened", _onWidgetOpened);
             Gleap.RegisterListener("widgetClosed", _onWidgetClosed);
+            Gleap.RegisterListener("feedbackButtonVisibilityChanged", _onFeedbackButtonVisibilityChanged);
             Gleap.RegisterListener("notificationCountUpdated", _onNotificationCountUpdated);
             Gleap.RegisterListener("outboundSent", _onOutboundSent);
 
@@ -556,6 +559,12 @@ public class GleapMessenger : Grid, IDisposable
                 ShowMessenger();
                 return;
             }
+            // Gleap.SetDisableInAppNotifications(true) suppresses the card — but not the checklist above,
+            // which still opens in the widget (native behaviour).
+            if (_backend.InAppNotificationsDisabled)
+            {
+                return;
+            }
             _notifications?.Show(n);
         }
     }
@@ -607,7 +616,7 @@ public class GleapMessenger : Grid, IDisposable
                 _chatIcon.Child = new Image { Source = bmp, Stretch = Stretch.Uniform };
             }
 
-            // Configured position offset from the bottom-right corner.
+            // Configured position offset from the corner.
             double bx = ReadDouble(root, "buttonX"), by = ReadDouble(root, "buttonY");
             if (bx != 0 || by != 0)
             {
@@ -616,6 +625,9 @@ public class GleapMessenger : Grid, IDisposable
                 _badge.Margin = new Thickness(0, 0, 22 + bx, 54 + by);
                 _notifications?.SetOffset(bx, by);
             }
+
+            ApplyButtonPosition(root.TryGetProperty("feedbackButtonPosition", out var pos)
+                && pos.ValueKind == JsonValueKind.String ? pos.GetString() : null);
         }
         catch
         {
@@ -624,6 +636,45 @@ public class GleapMessenger : Grid, IDisposable
 
         // Match the preview cards' avatar/progress accent to the (possibly recoloured) launcher.
         _notifications?.SetAccent(_launcher.Background);
+    }
+
+    /// <summary>
+    /// Applies the project's configured <c>feedbackButtonPosition</c>. <c>BUTTON_NONE</c> hides the
+    /// launcher; the <c>*_LEFT</c> variants move it to the bottom-left; everything else stays bottom-right.
+    /// <para>The web SDK's CLASSIC variants render a vertical text tab pinned to the page edge — a browser
+    /// idiom with no desktop equivalent, so we honour only their side and keep the bubble.</para>
+    /// </summary>
+    private void ApplyButtonPosition(string? position)
+    {
+        if (position == "BUTTON_NONE")
+        {
+            SetLauncherVisible(false);
+            return;
+        }
+
+        var left = position is "BOTTOM_LEFT" or "BUTTON_CLASSIC_LEFT";
+        var side = left ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        _launcher.HorizontalAlignment = side;
+        _overlay.HorizontalAlignment = side;
+        _badge.HorizontalAlignment = side;
+        if (left)
+        {
+            // Mirror the corner insets so the launcher hugs the left edge instead of the right.
+            _launcher.Margin = new Thickness(_launcher.Margin.Right, 0, 0, _launcher.Margin.Bottom);
+            _overlay.Margin = new Thickness(_overlay.Margin.Right, 0, 0, _overlay.Margin.Bottom);
+            _badge.Margin = new Thickness(_badge.Margin.Right, 0, 0, _badge.Margin.Bottom);
+        }
+    }
+
+    /// <summary>Shows/hides the launcher and its unread badge (<see cref="Gleap.ShowFeedbackButton"/> and
+    /// the <c>BUTTON_NONE</c> config).</summary>
+    private void SetLauncherVisible(bool visible)
+    {
+        _launcher.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        if (!visible)
+        {
+            _badge.Visibility = Visibility.Collapsed;
+        }
     }
 
     private static double ReadDouble(JsonElement root, string name) =>
@@ -704,6 +755,11 @@ public class GleapMessenger : Grid, IDisposable
             {
                 Gleap.RemoveListener("outboundSent", _onOutboundSent);
                 _onOutboundSent = null;
+            }
+            if (_onFeedbackButtonVisibilityChanged != null)
+            {
+                Gleap.RemoveListener("feedbackButtonVisibilityChanged", _onFeedbackButtonVisibilityChanged);
+                _onFeedbackButtonVisibilityChanged = null;
             }
 
             _notifications?.Clear();

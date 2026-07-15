@@ -65,7 +65,6 @@ public interface IGleapBackend
     void StopNetworkLogging();
     void EnableDebugConsoleLog();
     void DisableConsoleLog();
-    void SetActivationMethods(ActivationMethod[] activationMethods);
     void SetAiTools(GleapSDK.Models.AITool[] tools);
     void AddReplayFrame(string base64);
 }

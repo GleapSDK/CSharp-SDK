@@ -77,7 +77,6 @@ public static class Gleap
     public static void StopNetworkLogging() => Backend.StopNetworkLogging();
     public static void EnableDebugConsoleLog() => Backend.EnableDebugConsoleLog();
     public static void DisableConsoleLog() => Backend.DisableConsoleLog();
-    public static void SetActivationMethods(ActivationMethod[] activationMethods) => Backend.SetActivationMethods(activationMethods);
     public static void SetAiTools(Models.AITool[] tools) => Backend.SetAiTools(tools);
     public static void AddReplayFrame(string base64) => Backend.AddReplayFrame(base64);
 

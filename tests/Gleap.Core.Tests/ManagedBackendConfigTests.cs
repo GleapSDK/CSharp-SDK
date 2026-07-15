@@ -53,7 +53,31 @@ public class ManagedBackendConfigTests
         backend.StopNetworkLogging();
         backend.EnableDebugConsoleLog();
         backend.DisableConsoleLog();
-        backend.SetActivationMethods(new[] { ActivationMethod.Shake });
+    }
+
+    [Fact]
+    public void ShowFeedbackButton_IsVisibleByDefault_AndRaisesOnChange()
+    {
+        var (backend, _) = NewInitialized();
+        Assert.True(backend.IsFeedbackButtonVisible);
+        object? raised = null;
+        backend.RegisterListener("feedbackButtonVisibilityChanged", v => raised = v);
+
+        backend.ShowFeedbackButton(false);
+
+        Assert.False(backend.IsFeedbackButtonVisible);
+        Assert.Equal(false, raised);
+    }
+
+    [Fact]
+    public void SetDisableInAppNotifications_IsObservable()
+    {
+        var (backend, _) = NewInitialized();
+        Assert.False(backend.InAppNotificationsDisabled);
+
+        backend.SetDisableInAppNotifications(true);
+
+        Assert.True(backend.InAppNotificationsDisabled);
     }
 
     [Fact]
