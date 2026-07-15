@@ -177,4 +177,39 @@ public class ManagedBackendRealtimeTests
 
         Assert.Contains("\"ws\":true", http.Calls[^1].Body);
     }
+
+    [Fact]
+    public async Task Ping_DoesNotProcessResponse_WhileRealtimeConnected()
+    {
+        var (backend, ch, http, rt) = await NewInitializedAsync();
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+
+        // The socket delivers the real unread count...
+        object? unread = null;
+        backend.RegisterListener("notificationCountUpdated", d => unread = d);
+        rt.IsConnected = true;
+        rt.Emit("{\"name\":\"update\",\"data\":{\"a\":[],\"u\":7}}");
+        Assert.Equal(7, unread);
+
+        // ...and the ws-mode ping answers with an empty body. Processing it would emit 0 and hide the badge.
+        http.Responses.Enqueue(new HttpResult(200, "{}"));
+        await backend.PollOutboundOnceAsync(CancellationToken.None);
+
+        Assert.Equal(7, unread);
+    }
+
+    [Fact]
+    public async Task Ping_StillProcessesResponse_WhenRealtimeDisconnected()
+    {
+        var (backend, ch, http, rt) = await NewInitializedAsync();
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+        object? unread = null;
+        backend.RegisterListener("notificationCountUpdated", d => unread = d);
+        rt.IsConnected = false;   // poll is the fallback transport -> response carries the update
+        http.Responses.Enqueue(new HttpResult(200, "{\"a\":[],\"u\":3}"));
+
+        await backend.PollOutboundOnceAsync(CancellationToken.None);
+
+        Assert.Equal(3, unread);
+    }
 }

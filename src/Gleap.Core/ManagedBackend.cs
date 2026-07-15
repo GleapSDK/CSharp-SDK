@@ -619,7 +619,14 @@ public sealed class ManagedBackend : IGleapBackend
         // buffered so the next cycle retries them instead of losing them silently).
         _eventLog.Clear();
 
-        ProcessUpdate(response);
+        // In ws mode the server deliberately answers with an empty body — outbound actions and the unread
+        // count are pushed over the socket instead. Parsing that empty response would yield unreadCount 0
+        // and clobber the count the socket just delivered, so the ping is events-only here (iOS guards the
+        // same way with `if (!self.webSocketEnabled)`).
+        if (!ws)
+        {
+            ProcessUpdate(response);
+        }
     }
 
     /// <summary>Dispatches an outbound update (from the poll response or a WebSocket <c>update</c> frame):
