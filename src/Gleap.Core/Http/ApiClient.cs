@@ -99,21 +99,40 @@ public sealed class ApiClient
         return res.Body;
     }
 
-    private static Dictionary<string, object?> ToDict(GleapUserProperty p) => new()
+    /// <summary>
+    /// Serializes only the properties the caller actually set. Unset (null) properties MUST be omitted:
+    /// the server treats a null known-key as an explicit unset and <c>$unset</c>s that field, so sending
+    /// the full shape would wipe contact data the caller never touched (a plan/company/avatar set earlier,
+    /// by a CRM import, or in the dashboard). Matches iOS's <c>dataDictToSendWith:</c> and JS, which both
+    /// send present keys only.
+    /// <para>This filtering cannot be delegated to the serializer: <c>JsonIgnoreCondition.WhenWritingNull</c>
+    /// applies to object properties, not to <see cref="Dictionary{TKey,TValue}"/> values.</para>
+    /// </summary>
+    private static Dictionary<string, object?> ToDict(GleapUserProperty p)
     {
-        ["userId"] = p.UserId,
-        ["name"] = p.Name,
-        ["email"] = p.Email,
-        ["phone"] = p.Phone,
-        ["plan"] = p.Plan,
-        ["companyName"] = p.CompanyName,
-        ["companyId"] = p.CompanyId,
-        ["avatar"] = p.Avatar,
-        ["lang"] = p.Lang,
-        ["value"] = p.Value,
-        ["sla"] = p.Sla,
-        ["customData"] = p.CustomData
-    };
+        var dict = new Dictionary<string, object?>();
+        AddIfSet(dict, "userId", p.UserId);
+        AddIfSet(dict, "name", p.Name);
+        AddIfSet(dict, "email", p.Email);
+        AddIfSet(dict, "phone", p.Phone);
+        AddIfSet(dict, "plan", p.Plan);
+        AddIfSet(dict, "companyName", p.CompanyName);
+        AddIfSet(dict, "companyId", p.CompanyId);
+        AddIfSet(dict, "avatar", p.Avatar);
+        AddIfSet(dict, "lang", p.Lang);
+        AddIfSet(dict, "value", p.Value);
+        AddIfSet(dict, "sla", p.Sla);
+        AddIfSet(dict, "customData", p.CustomData);
+        return dict;
+    }
+
+    private static void AddIfSet(Dictionary<string, object?> dict, string key, object? value)
+    {
+        if (value != null)
+        {
+            dict[key] = value;
+        }
+    }
 
     /// <summary>POST /sessions/identify. Returns the (possibly upgraded) session ids.</summary>
     public async Task<SessionResult> IdentifyAsync(
