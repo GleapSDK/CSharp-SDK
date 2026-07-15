@@ -80,7 +80,10 @@ public sealed class ManagedBackend : IGleapBackend
     private bool _widgetOpen;
     private string? _lastScreenName;
     private string? _editedScreenshot;
-    private string _language = "en";
+    /// <summary>Widget/config language. Defaults to the OS UI language (iOS uses
+    /// <c>NSLocale.preferredLanguages</c>, JS <c>navigator.language</c>); override with
+    /// <see cref="SetLanguage"/>.</summary>
+    private string _language = DefaultLanguage();
     private bool _feedbackButtonVisible = true;
     private bool _inAppNotificationsDisabled;
     private IReadOnlyDictionary<string, object?>? _prefill;
@@ -143,6 +146,7 @@ public sealed class ManagedBackend : IGleapBackend
         await _session.StartAsync(_language, _d.DeviceType, ct).ConfigureAwait(false);
         LogEvent("sessionStarted", null);   // per session establishment, matching the native SDKs
         await _config.LoadAsync(_language, ct).ConfigureAwait(false);
+        ApplyRemoteConfig();
 
         // Real-time channel (optional): once the session exists, connect the WebSocket so outbound
         // actions and the unread count arrive instantly instead of on the next poll tick.
@@ -893,7 +897,113 @@ public sealed class ManagedBackend : IGleapBackend
             InnerHandler = innerHandler ?? new System.Net.Http.HttpClientHandler()
         };
 
-    public void SetLanguage(string language) => _language = language;
+    /// <summary>
+    /// Overrides the widget/config language. After initialization this re-fetches the project config for
+    /// the new language and pushes it to the widget, so the change takes effect immediately — matching the
+    /// native SDKs, where setLanguage also reloads and re-publishes the config.
+    /// </summary>
+    public void SetLanguage(string language)
+    {
+        if (string.IsNullOrWhiteSpace(language) || language == _language)
+        {
+            return;
+        }
+        _language = language;
+
+        // Before init there is nothing to reload; InitializeAsync will fetch with this language.
+        if (_config == null)
+        {
+            return;
+        }
+        LastLanguageTask = ReloadConfigForLanguageAsync();
+    }
+
+    /// <summary>The most recently started language-driven config reload; exposed so tests can await it.</summary>
+    internal Task? LastLanguageTask { get; private set; }
+
+    /// <summary>Whether network-log capture is on (driven by the project config); exposed for tests.</summary>
+    internal bool NetworkLogEnabled => _networkLog.Enabled;
+
+    private async Task ReloadConfigForLanguageAsync()
+    {
+        try
+        {
+            await _config.LoadAsync(_language, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (GleapApiException)
+        {
+            return;   // keep the config we already have; the widget stays on the previous language
+        }
+        ApplyRemoteConfig();
+        _bootstrapper.SendConfigUpdate();
+    }
+
+    private static string DefaultLanguage()
+    {
+        try
+        {
+            var name = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+            return string.IsNullOrWhiteSpace(name) ? "en" : name.ToLowerInvariant();
+        }
+        catch (System.Globalization.CultureNotFoundException)
+        {
+            return "en";
+        }
+    }
+
+    /// <summary>
+    /// Applies the project's remote config to the collectors. The native SDKs honour these server-side
+    /// switches; without this, network logging settings configured in the dashboard were inert and a
+    /// blacklist/redaction the project had asked for was never applied. Host calls made after
+    /// initialization still win, since they run later.
+    /// </summary>
+    private void ApplyRemoteConfig()
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(FlowConfigJson);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return;
+            }
+
+            if (root.TryGetProperty("enableNetworkLogs", out var enabled)
+                && (enabled.ValueKind == JsonValueKind.True || enabled.ValueKind == JsonValueKind.False))
+            {
+                _networkLog.Enabled = enabled.GetBoolean();
+            }
+            if (ReadStringArray(root, "networkLogBlacklist") is { Count: > 0 } blacklist)
+            {
+                _networkLog.SetBlacklist(blacklist);
+            }
+            if (ReadStringArray(root, "networkLogPropsToIgnore") is { Count: > 0 } props)
+            {
+                _networkLog.SetPropsToIgnore(props);
+            }
+        }
+        catch (JsonException)
+        {
+            // Malformed config — keep the built-in defaults rather than failing initialization.
+        }
+    }
+
+    private static List<string>? ReadStringArray(JsonElement root, string name)
+    {
+        if (!root.TryGetProperty(name, out var arr) || arr.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+        var list = new List<string>();
+        foreach (var item in arr.EnumerateArray())
+        {
+            if (item.ValueKind == JsonValueKind.String && item.GetString() is { } s)
+            {
+                list.Add(s);
+            }
+        }
+        return list;
+    }
     public bool IsOpened() => _widgetOpen;
     /// <summary>Shows or hides the platform host's launcher button. Raises
     /// <c>feedbackButtonVisibilityChanged</c> so the host can apply it immediately.</summary>
