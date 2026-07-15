@@ -713,6 +713,7 @@ public class GleapMessenger : Grid, IDisposable
         _launcher.HorizontalAlignment = side;
         _overlay.HorizontalAlignment = side;
         _badge.HorizontalAlignment = side;
+        _notifications?.SetAlignment(left);   // cards follow the launcher, or they'd float over nothing
         if (left)
         {
             // Mirror the corner insets so the launcher hugs the left edge instead of the right.

@@ -29,6 +29,9 @@ internal sealed class GleapNotificationStack
     private readonly Border _dismissButton;
     private readonly List<CardEntry> _cards = new();
     private Brush _accent = new SolidColorBrush(Color.FromRgb(0x48, 0x5B, 0xFF));
+    private double _offsetX;
+    private double _offsetY;
+    private bool _left;
 
     private sealed class CardEntry
     {
@@ -60,7 +63,30 @@ internal sealed class GleapNotificationStack
     public void SetAccent(Brush accent) => _accent = accent;
 
     /// <summary>Shifts the stack to track the configured launcher offset (buttonX/buttonY).</summary>
-    public void SetOffset(double x, double y) => _container.Margin = new Thickness(0, 0, 24 + x, 88 + y);
+    public void SetOffset(double x, double y)
+    {
+        _offsetX = x;
+        _offsetY = y;
+        ApplyLayout();
+    }
+
+    /// <summary>Keeps the cards on the same side as the launcher (<c>feedbackButtonPosition</c>).</summary>
+    public void SetAlignment(bool left)
+    {
+        _left = left;
+        ApplyLayout();
+    }
+
+    private void ApplyLayout()
+    {
+        var side = _left ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        _container.HorizontalAlignment = side;
+        _container.Margin = _left
+            ? new Thickness(24 + _offsetX, 0, 0, 88 + _offsetY)
+            : new Thickness(0, 0, 24 + _offsetX, 88 + _offsetY);
+        _dismissButton.HorizontalAlignment = side;
+        _dismissButton.Margin = _left ? new Thickness(4, 0, 0, 8) : new Thickness(0, 0, 4, 8);
+    }
 
     /// <summary>Shows (or replaces, by outbound id) a notification card. Caps the stack at two, newest at
     /// the bottom (nearest the launcher).</summary>
