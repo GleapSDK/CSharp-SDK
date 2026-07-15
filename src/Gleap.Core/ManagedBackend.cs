@@ -69,6 +69,7 @@ public sealed class ManagedBackend : IGleapBackend
     private readonly SessionDataCollector _collector;
     private readonly GleapEventDispatcher _events = new();
     private bool _widgetOpen;
+    private string? _lastScreenName;
     private string? _editedScreenshot;
     private string _language = "en";
     private bool _feedbackButtonVisible;
@@ -90,7 +91,8 @@ public sealed class ManagedBackend : IGleapBackend
         _collector = new SessionDataCollector(
             _consoleLog, _eventLog, _networkLog,
             _customData, _ticketAttributes, _tags,
-            _d.Metadata);
+            _d.Metadata,
+            () => _lastScreenName);
     }
 
     private WebViewBridge Bridge => _bridge ?? throw new System.InvalidOperationException(
@@ -786,7 +788,14 @@ public sealed class ManagedBackend : IGleapBackend
 
     public void Log(string message, LogLevel level) => _consoleLog.Add(message, level);
     public void TrackEvent(string name, object? data) => _eventLog.Add(name, data);
-    public void TrackPage(string pageName) => _eventLog.Add("pageView", new Dictionary<string, object> { ["page"] = pageName });
+
+    public void TrackPage(string pageName)
+    {
+        // Doubles as the report's metaData.lastScreenName (hosts skip tracking while the widget is open,
+        // so this stays the screen the user was on before opening it — the iOS semantics).
+        _lastScreenName = pageName;
+        _eventLog.Add("pageView", new Dictionary<string, object> { ["page"] = pageName });
+    }
     public void SetCustomData(string key, string value) => _customData.Set(key, value);
     public void AttachCustomData(IReadOnlyDictionary<string, object> data) => _customData.Merge(data);
     public void RemoveCustomDataForKey(string key) => _customData.Remove(key);

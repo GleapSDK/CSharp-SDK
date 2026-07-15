@@ -24,6 +24,41 @@ public class SessionDataCollectorTests
             new DefaultMetadataProvider("NET/Test", "0.1.0"));
     }
 
+    private static SessionDataCollector NewCollectorWithScreen(Func<string?> lastScreenName)
+    {
+        var clock = new FakeClock();
+        return new SessionDataCollector(
+            new ConsoleLogBuffer(clock, 100),
+            new EventBuffer(clock, 100),
+            new NetworkLogBuffer(100),
+            new CustomDataStore(),
+            new TicketAttributeStore(),
+            new TagStore(),
+            new DefaultMetadataProvider("NET/Test", "0.1.0"),
+            lastScreenName);
+    }
+
+    [Fact]
+    public void BuildTicketData_MetaData_CarriesLastScreenName()
+    {
+        var collector = NewCollectorWithScreen(() => "CheckoutWindow");
+
+        var json = new SystemTextJsonSerializer().Serialize(collector.BuildTicketData());
+
+        Assert.Contains("\"lastScreenName\":\"CheckoutWindow\"", json);
+    }
+
+    [Fact]
+    public void BuildTicketData_MetaData_LastScreenNameEmpty_WhenNoScreenTracked()
+    {
+        var collector = NewCollectorWithScreen(() => null);
+
+        var json = new SystemTextJsonSerializer().Serialize(collector.BuildTicketData());
+
+        // iOS always reports the key, empty until a screen has been seen.
+        Assert.Contains("\"lastScreenName\":\"\"", json);
+    }
+
     [Fact]
     public void BuildTicketData_HasAllRequiredKeys()
     {
