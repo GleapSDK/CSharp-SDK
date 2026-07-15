@@ -138,6 +138,34 @@ public class ManagedBackendRealtimeTests
     }
 
     [Fact]
+    public async Task Init_LogsSessionStartedEvent()
+    {
+        var (backend, ch, http, _) = await NewInitializedAsync();
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+        http.Responses.Enqueue(new HttpResult(200, "{}"));
+
+        await backend.PollOutboundOnceAsync(CancellationToken.None);
+
+        Assert.Contains("sessionStarted", http.Calls[^1].Body);
+    }
+
+    [Fact]
+    public async Task ClearIdentity_LogsAnotherSessionStarted()
+    {
+        var (backend, ch, http, _) = await NewInitializedAsync();
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+        http.Responses.Enqueue(new HttpResult(200, "{}"));
+        await backend.PollOutboundOnceAsync(CancellationToken.None);   // flushes the first sessionStarted
+
+        http.Responses.Enqueue(new HttpResult(200, "{\"gleapId\":\"g2\",\"gleapHash\":\"h2\"}"));
+        await backend.ClearIdentityAsync(CancellationToken.None);
+        http.Responses.Enqueue(new HttpResult(200, "{}"));
+        await backend.PollOutboundOnceAsync(CancellationToken.None);
+
+        Assert.Contains("sessionStarted", http.Calls[^1].Body);
+    }
+
+    [Fact]
     public async Task Ping_SetsWsFlagTrue_WhenRealtimeConnected()
     {
         var (backend, ch, http, rt) = await NewInitializedAsync();

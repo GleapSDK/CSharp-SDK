@@ -130,6 +130,7 @@ public sealed class ManagedBackend : IGleapBackend
         _bridge.ToolExecutionRequested += _ => _events.Emit("toolExecution");
 
         await _session.StartAsync(_language, _d.DeviceType, ct).ConfigureAwait(false);
+        _eventLog.Add("sessionStarted", null);   // per session establishment, matching the native SDKs
         await _config.LoadAsync(_language, ct).ConfigureAwait(false);
 
         // Real-time channel (optional): once the session exists, connect the WebSocket so outbound
@@ -770,6 +771,7 @@ public sealed class ManagedBackend : IGleapBackend
     {
         _session.ClearIdentity();
         await _session.StartAsync(_language, _d.DeviceType, ct).ConfigureAwait(false);
+        _eventLog.Add("sessionStarted", null);   // a fresh guest session is a new session
         _bootstrapper.SendSessionUpdate();
         _d.Realtime?.Connect(BuildRealtimeUrl());   // reconnect with the fresh guest session
     }

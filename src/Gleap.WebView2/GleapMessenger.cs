@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
@@ -53,6 +54,8 @@ public class GleapMessenger : Grid, IDisposable
     private readonly TextBlock _badgeText;
     private DispatcherTimer? _pollTimer;
     private DispatcherTimer? _replayTimer;
+    private DispatcherTimer? _pageTimer;
+    private string? _lastPageName;
     private ManagedBackend? _backend;
     private bool _initializing;
     private bool _isOpen;
@@ -85,6 +88,11 @@ public class GleapMessenger : Grid, IDisposable
 
     /// <summary>Outbound poll interval (default 5s).</summary>
     public TimeSpan PollingInterval { get; set; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>Automatically track the active window as a <c>pageView</c> event (default true), mirroring
+    /// the native SDKs' screen tracking. Set false to report screens yourself via
+    /// <see cref="Gleap.TrackPage"/>.</summary>
+    public bool EnablePageTracking { get; set; } = true;
 
     /// <summary>The backend created on preload, or null until then.</summary>
     public ManagedBackend? Backend => _backend;
@@ -350,6 +358,7 @@ public class GleapMessenger : Grid, IDisposable
             }
 
             StartReplayCaptureIfEnabled();
+            StartPageTracking();
 
             Ready?.Invoke(this, EventArgs.Empty);
         }
@@ -427,6 +436,61 @@ public class GleapMessenger : Grid, IDisposable
             }
         };
         _replayTimer.Start();
+    }
+
+    /// <summary>Polls the active window once a second and logs a <c>pageView</c> event whenever it changes,
+    /// mirroring the native SDKs' 1s screen-tracking timer. Like iOS, samples are skipped while the
+    /// messenger is open so the Gleap widget itself is never reported as the user's screen — which also
+    /// keeps the last tracked page equal to the screen the user was on before opening it.</summary>
+    private void StartPageTracking()
+    {
+        if (!EnablePageTracking)
+        {
+            return;
+        }
+        _pageTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _pageTimer.Tick += (_, _) => TrackCurrentPage();
+        _pageTimer.Start();
+        TrackCurrentPage();   // sample immediately, like the native SDKs' initial call
+    }
+
+    private void TrackCurrentPage()
+    {
+        if (_disposed || _isOpen)
+        {
+            return;
+        }
+        var name = CurrentScreenName();
+        if (string.IsNullOrEmpty(name) || name == _lastPageName)
+        {
+            return;   // unchanged -> no event (native dedupe)
+        }
+        _lastPageName = name;
+        try
+        {
+            Gleap.TrackPage(name!);
+        }
+        catch
+        {
+            // Never let screen tracking break the host app.
+        }
+    }
+
+    /// <summary>The active window's title, falling back to its type name — the WPF equivalent of iOS's
+    /// "top view controller title, else class name".</summary>
+    private static string? CurrentScreenName()
+    {
+        var app = Application.Current;
+        if (app == null)
+        {
+            return null;
+        }
+        var window = app.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive) ?? app.MainWindow;
+        if (window == null)
+        {
+            return null;
+        }
+        return !string.IsNullOrWhiteSpace(window.Title) ? window.Title : window.GetType().Name;
     }
 
     /// <summary>Keeps the messenger at its fixed <see cref="PanelHeight"/> (it scrolls internally, like the
@@ -610,6 +674,8 @@ public class GleapMessenger : Grid, IDisposable
             _pollTimer = null;
             _replayTimer?.Stop();
             _replayTimer = null;
+            _pageTimer?.Stop();
+            _pageTimer = null;
 
             // Unhook the facade listeners so the disposed control isn't kept alive by the backend.
             if (_onWidgetClosed != null)
