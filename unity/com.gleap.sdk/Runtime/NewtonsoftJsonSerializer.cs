@@ -34,10 +34,9 @@ namespace GleapSDK.Unity
         }
 
         /// <summary>CamelCase resolver that also honours <c>System.Text.Json</c>'s
-        /// <see cref="System.Text.Json.Serialization.JsonPropertyNameAttribute"/>, which the DTOs use and
-        /// Newtonsoft ignores by default. Without this, <c>AIToolParameter.Enums</c>
-        /// (<c>[JsonPropertyName("enum")]</c>) would serialize as <c>"enums"</c> and the web widget would
-        /// not recognize the AI-tool parameter's allowed-values list.</summary>
+        /// <see cref="System.Text.Json.Serialization.JsonPropertyNameAttribute"/> (which Newtonsoft ignores
+        /// by default), so any DTO that overrides its wire name stays in parity with
+        /// <c>SystemTextJsonSerializer</c> and the web widget sees the expected key.</summary>
         private sealed class GleapContractResolver : CamelCasePropertyNamesContractResolver
         {
             // Fully-qualified return type: System.Text.Json also defines a JsonProperty, so the bare name

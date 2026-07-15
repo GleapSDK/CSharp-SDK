@@ -31,7 +31,7 @@ public sealed class WidgetBootstrapper
         SendPrefill();
     }
 
-    /// <summary>Sends config-update from the current snapshot. Called on ping and again after <see cref="GleapSDK.ManagedBackend.SetAiTools"/>.</summary>
+    /// <summary>Sends config-update from the current snapshot. Called on ping.</summary>
     public void SendConfigUpdate()
     {
         var s = _snapshot();
@@ -43,8 +43,7 @@ public sealed class WidgetBootstrapper
                 ["config"] = RawJson(s.FlowConfigJson),
                 ["actions"] = RawJson(s.ProjectActionsJson),
                 ["overrideLanguage"] = s.Language,
-                ["isApp"] = true,
-                ["aiTools"] = s.AiTools
+                ["isApp"] = true
             }
         });
     }

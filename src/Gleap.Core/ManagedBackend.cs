@@ -89,7 +89,12 @@ public sealed class ManagedBackend : IGleapBackend
     private bool _feedbackButtonVisible = true;
     private bool _inAppNotificationsDisabled;
     private IReadOnlyDictionary<string, object?>? _prefill;
-    private System.Collections.Generic.IReadOnlyList<GleapSDK.Models.AITool> _aiTools = System.Array.Empty<GleapSDK.Models.AITool>();
+    // Frontend tools: name -> handler registered by the app via RegisterAgentTool. Tool
+    // definitions live on the AI agent in the dashboard; the app only supplies the handler.
+    private readonly Dictionary<string, GleapAgentToolHandler> _agentTools = new(System.StringComparer.Ordinal);
+    // In-flight executions keyed by toolCallId: the widget and the AI chatbar are separate
+    // surfaces on the same channel, so both can request the same call — run the handler once.
+    private readonly Dictionary<string, Task<string>> _runningToolCalls = new(System.StringComparer.Ordinal);
 
     /// <summary>The most recently started send-feedback round-trip; exposed so tests can await it.</summary>
     internal Task? LastFeedbackTask { get; private set; }
@@ -160,7 +165,8 @@ public sealed class ManagedBackend : IGleapBackend
         _bridge.ChecklistLoaded += data => _events.Emit("checklistLoaded", RawOrNull(data));
         _bridge.CustomActionTriggered += (name, token) =>
             _events.Emit("customActionTriggered", new Dictionary<string, object?> { ["name"] = name, ["shareToken"] = token });
-        _bridge.ToolExecutionRequested += _ => _events.Emit("toolExecution");
+        _bridge.ToolExecutionRequested += data => _events.Emit("toolExecution", RawOrNull(data));
+        _bridge.FrontendToolExecuteRequested += data => _ = HandleFrontendToolExecuteAsync(data);
 
         await _session.StartAsync(_language, _d.DeviceType, ct).ConfigureAwait(false);
         LogEvent("sessionStarted", null);   // per session establishment, matching the native SDKs
@@ -698,8 +704,7 @@ public sealed class ManagedBackend : IGleapBackend
         Avatar = _session.Identity?.Avatar,
         Value = _session.Identity?.Value,
         Sla = _session.Identity?.Sla,
-        PreFillFormData = _prefill,
-        AiTools = _aiTools
+        PreFillFormData = _prefill
     };
 
     /// <summary>Opens the messenger. Idempotent: a no-op when already open, so the navigation methods and
@@ -923,6 +928,7 @@ public sealed class ManagedBackend : IGleapBackend
     public void ShowSurvey(string surveyId, SurveyFormat format) => Navigate(WidgetCommands.StartSurvey(surveyId, format));
     public void OpenConversations(bool showBackButton) => Navigate(WidgetCommands.OpenConversations(showBackButton));
     public void StartClassicForm(string formId, bool showBackButton) => Navigate(WidgetCommands.StartClassicForm(formId, showBackButton));
+    public void StartFeedbackFlow(string feedbackFlow, bool showBackButton) => Navigate(WidgetCommands.StartFeedbackFlow(feedbackFlow, showBackButton));
     public void OpenHelpCenterArticle(string articleId, bool showBackButton) => Navigate(WidgetCommands.OpenHelpCenterArticle(articleId, showBackButton));
     public void OpenHelpCenterCollection(string collectionId, bool showBackButton) => Navigate(WidgetCommands.OpenHelpCenterCollection(collectionId, showBackButton));
     public void SearchHelpCenter(string term, bool showBackButton) => Navigate(WidgetCommands.SearchHelpCenter(term, showBackButton));
@@ -1145,9 +1151,146 @@ public sealed class ManagedBackend : IGleapBackend
     public void EnableDebugConsoleLog() => _consoleLog.Enabled = true;
     public void DisableConsoleLog() => _consoleLog.Enabled = false;
 
-    public void SetAiTools(GleapSDK.Models.AITool[] tools)
+    public void RegisterAgentTool(string name, GleapAgentToolHandler handler)
     {
-        _aiTools = tools;
-        _bootstrapper.SendConfigUpdate();
+        if (string.IsNullOrEmpty(name) || handler == null)
+        {
+            return;
+        }
+        lock (_agentTools)
+        {
+            _agentTools[name] = handler;
+        }
+    }
+
+    /// <summary>
+    /// Handles a "frontend-tool-execute" request: runs the registered handler for the named tool
+    /// and posts "frontend-tool-result" { toolCallId, name, result } back to the widget, which
+    /// delivers it to the waiting agent. Deduped by toolCallId so the handler runs only once even
+    /// when the widget and the AI chatbar both request the same call.
+    /// </summary>
+    private async Task HandleFrontendToolExecuteAsync(JsonElement data)
+    {
+        if (data.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+        var toolCallId = data.TryGetProperty("toolCallId", out var idEl) && idEl.ValueKind == JsonValueKind.String
+            ? idEl.GetString()
+            : null;
+        var name = data.TryGetProperty("name", out var nameEl) && nameEl.ValueKind == JsonValueKind.String
+            ? nameEl.GetString()
+            : null;
+        if (string.IsNullOrEmpty(name))
+        {
+            return; // no tool to run
+        }
+
+        var parameters = ReadToolParams(data);
+
+        Task<string> execution;
+        if (!string.IsNullOrEmpty(toolCallId))
+        {
+            lock (_runningToolCalls)
+            {
+                if (!_runningToolCalls.TryGetValue(toolCallId!, out execution!))
+                {
+                    execution = RunAgentToolAsync(name!, parameters);
+                    _runningToolCalls[toolCallId!] = execution;
+                }
+            }
+        }
+        else
+        {
+            execution = RunAgentToolAsync(name!, parameters);
+        }
+
+        var result = await execution.ConfigureAwait(false);
+
+        _bridge.Send(new GleapBridgeMessage
+        {
+            Name = "frontend-tool-result",
+            Data = new Dictionary<string, object?>
+            {
+                ["toolCallId"] = toolCallId,
+                ["name"] = name,
+                ["result"] = result
+            }
+        });
+    }
+
+    /// <summary>Runs a registered handler and maps its return value to the string the agent receives.
+    /// Never throws: a missing handler, a thrown handler, or an empty result each become an
+    /// explanatory string (matching the JS SDK's Frontend-tool contract).</summary>
+    private async Task<string> RunAgentToolAsync(string name, IReadOnlyDictionary<string, object?> parameters)
+    {
+        GleapAgentToolHandler? handler;
+        lock (_agentTools)
+        {
+            _agentTools.TryGetValue(name, out handler);
+        }
+        if (handler == null)
+        {
+            return $"No handler registered for tool '{name}' in the app. "
+                + $"Register one via Gleap.RegisterAgentTool(\"{name}\", handler).";
+        }
+        try
+        {
+            var raw = await handler(parameters).ConfigureAwait(false);
+            var result = raw as string ?? (raw == null ? "" : _d.Json.Serialize(raw));
+            return string.IsNullOrEmpty(result) ? "The action completed without returning a result." : result;
+        }
+        catch (System.Exception ex)
+        {
+            return $"Tool execution failed: {ex.Message}";
+        }
+    }
+
+    /// <summary>Reads the "params" object of a tool-execution request into a natural CLR map.</summary>
+    private static Dictionary<string, object?> ReadToolParams(JsonElement data)
+    {
+        var result = new Dictionary<string, object?>();
+        if (data.TryGetProperty("params", out var p) && p.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var prop in p.EnumerateObject())
+            {
+                result[prop.Name] = JsonToClr(prop.Value);
+            }
+        }
+        return result;
+    }
+
+    /// <summary>Converts a JSON value into plain CLR types (string/long/double/bool/dictionary/list/null)
+    /// so tool handlers receive natural values instead of raw <see cref="JsonElement"/>s.</summary>
+    private static object? JsonToClr(JsonElement el) => el.ValueKind switch
+    {
+        JsonValueKind.String => el.GetString(),
+        // Cast to object so the conditional does not promote the integer branch to double.
+        JsonValueKind.Number => el.TryGetInt64(out var l) ? (object)l : el.GetDouble(),
+        JsonValueKind.True => true,
+        JsonValueKind.False => false,
+        JsonValueKind.Object => ReadClrObject(el),
+        JsonValueKind.Array => ReadClrArray(el),
+        _ => null
+    };
+
+    private static Dictionary<string, object?> ReadClrObject(JsonElement el)
+    {
+        var map = new Dictionary<string, object?>();
+        foreach (var prop in el.EnumerateObject())
+        {
+            map[prop.Name] = JsonToClr(prop.Value);
+        }
+        return map;
+    }
+
+    private static List<object?> ReadClrArray(JsonElement el)
+    {
+        var list = new List<object?>();
+        foreach (var item in el.EnumerateArray())
+        {
+            list.Add(JsonToClr(item));
+        }
+        return list;
     }
 }

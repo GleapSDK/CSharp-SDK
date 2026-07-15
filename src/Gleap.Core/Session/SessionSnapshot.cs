@@ -24,6 +24,4 @@ public sealed class SessionSnapshot
     public double? Sla { get; set; }
 
     public IReadOnlyDictionary<string, object?>? PreFillFormData { get; set; }
-
-    public System.Collections.Generic.IReadOnlyList<GleapSDK.Models.AITool> AiTools { get; set; } = System.Array.Empty<GleapSDK.Models.AITool>();
 }

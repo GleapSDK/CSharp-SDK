@@ -35,8 +35,13 @@ public static class WidgetCommands
             Data = new Dictionary<string, object> { ["shareToken"] = shareToken, ["hideBackButton"] = false }
         };
 
+    public static GleapBridgeMessage StartFeedbackFlow(string feedbackFlow, bool showBackButton) =>
+        new() { Name = "start-feedbackflow", Data = Hide(showBackButton, ("flow", feedbackFlow)) };
+
+    // A classic form is the same widget flow, addressed by its form id (matches the JS SDK,
+    // where startClassicForm delegates to the feedback-flow command).
     public static GleapBridgeMessage StartClassicForm(string formId, bool showBackButton) =>
-        new() { Name = "start-feedbackflow", Data = Hide(showBackButton, ("flow", formId)) };
+        StartFeedbackFlow(formId, showBackButton);
 
     public static GleapBridgeMessage OpenHelpCenter(bool showBackButton) =>
         new() { Name = "open-helpcenter", Data = Hide(showBackButton) };

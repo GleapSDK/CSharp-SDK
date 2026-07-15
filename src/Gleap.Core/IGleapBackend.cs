@@ -26,6 +26,7 @@ public interface IGleapBackend
     void ShowSurvey(string surveyId, SurveyFormat format);
     void OpenConversations(bool showBackButton);
     void StartClassicForm(string formId, bool showBackButton);
+    void StartFeedbackFlow(string feedbackFlow, bool showBackButton);
     void OpenHelpCenterArticle(string articleId, bool showBackButton);
     void OpenHelpCenterCollection(string collectionId, bool showBackButton);
     void SearchHelpCenter(string term, bool showBackButton);
@@ -65,6 +66,6 @@ public interface IGleapBackend
     void StopNetworkLogging();
     void EnableDebugConsoleLog();
     void DisableConsoleLog();
-    void SetAiTools(GleapSDK.Models.AITool[] tools);
+    void RegisterAgentTool(string name, GleapAgentToolHandler handler);
     void AddReplayFrame(string base64);
 }

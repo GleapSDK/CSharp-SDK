@@ -98,10 +98,10 @@ native iOS/Android SDK source):
 | Silent crash report; callbacks (`RegisterListener`); config setters; `open-url` (system browser) | ✅ done |
 | Outbound polling (`/sessions/ping`, unread count, auto survey/feedback-flow) | ✅ core done + auto-polled by the Windows launcher |
 | Outbound **Banner + Modal** rendering | ✅ Windows host built to the native contract; the `appMessage` / `banner-data` / `modal-data` protocol **validated live** against `outboundmedia.gleap.io` (end-to-end with a real configured outbound: pending) |
-| AI tools declaration (`SetAiTools`) | core done (`frontend-tool-execute` reply: follow-up) |
+| AI / Frontend tools (`RegisterAgentTool(name, handler)`) | ✅ full execution round-trip — runs the registered handler on `frontend-tool-execute` and posts `frontend-tool-result` back to the agent (matches the JS SDK; missing-handler/error/empty folded into the result string, deduped by `toolCallId`) |
 | **Windows** (WPF/WebView2) | ✅ runs live — composition-hosted messenger + native launcher (styled from config); `-warnaserror` clean |
 | **.NET MAUI** (Android / iOS / Windows) | ✅ `MauiWebViewChannel` per platform + sample; **net10.0-windows compiles**; Android/iOS build+run need the platform SDKs (Android Studio / a Mac) |
-| **Unity** (UPM) | ✅ package + bundled Core DLLs + IL2CPP-safe `NewtonsoftJsonSerializer` (honors the DTOs' System.Text.Json `[JsonPropertyName]` — e.g. the AI-tool `enum` key — now verified byte-identical to the STJ output via a serialization diff) + `link.xml` IL2CPP strip-protection + plugin-agnostic channel; the Unity-dependent runtime (PlayerPrefs/metadata marshalled onto the main-thread pump) is verified on Unity editor import |
+| **Unity** (UPM) | ✅ package + bundled Core DLLs + IL2CPP-safe `NewtonsoftJsonSerializer` (camelCase + null-omit + raw `JsonElement` pass-through, and honors System.Text.Json `[JsonPropertyName]` so it stays byte-identical to the STJ output) + `link.xml` IL2CPP strip-protection + plugin-agnostic channel; the Unity-dependent runtime (PlayerPrefs/metadata marshalled onto the main-thread pump) is verified on Unity editor import |
 | In-app `notification` toasts, mobile activation (shake/screenshot), push, WebSocket, Unity WebGL (JS-SDK path) | not built (platform/runtime-dependent) |
 
 Design docs and per-feature implementation plans live under `docs/superpowers/`.

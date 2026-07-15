@@ -11,6 +11,8 @@ public class GleapFacadeTests
         public bool OpenCalled { get; private set; }
         public string? StartedBotId { get; private set; }
         public bool OpenNewsCalled { get; private set; }
+        public string? StartedFeedbackFlow { get; private set; }
+        public string? RegisteredAgentTool { get; private set; }
 
         public Task InitializeAsync(string token, CancellationToken ct) => Task.CompletedTask;
         public void RegisterListener(string eventName, Action<object?> handler) { }
@@ -26,6 +28,7 @@ public class GleapFacadeTests
         public void ShowSurvey(string surveyId, SurveyFormat format) { }
         public void OpenConversations(bool showBackButton) { }
         public void StartClassicForm(string formId, bool showBackButton) { }
+        public void StartFeedbackFlow(string feedbackFlow, bool showBackButton) => StartedFeedbackFlow = feedbackFlow;
         public void OpenHelpCenterArticle(string articleId, bool showBackButton) { }
         public void OpenHelpCenterCollection(string collectionId, bool showBackButton) { }
         public void SearchHelpCenter(string term, bool showBackButton) { }
@@ -65,7 +68,7 @@ public class GleapFacadeTests
         public void StopNetworkLogging() { }
         public void EnableDebugConsoleLog() { }
         public void DisableConsoleLog() { }
-        public void SetAiTools(AITool[] tools) { }
+        public void RegisterAgentTool(string name, GleapAgentToolHandler handler) => RegisteredAgentTool = name;
         public void AddReplayFrame(string base64) { }
     }
 
@@ -87,9 +90,13 @@ public class GleapFacadeTests
         GleapFacade.OpenNews();
         GleapFacade.StartBot("b");
         GleapFacade.Open();
+        GleapFacade.StartFeedbackFlow("bugreport");
+        GleapFacade.RegisterAgentTool("send-money", _ => Task.FromResult<object?>("ok"));
 
         Assert.True(fake.OpenNewsCalled);
         Assert.Equal("b", fake.StartedBotId);
         Assert.True(fake.OpenCalled);
+        Assert.Equal("bugreport", fake.StartedFeedbackFlow);
+        Assert.Equal("send-money", fake.RegisteredAgentTool);
     }
 }

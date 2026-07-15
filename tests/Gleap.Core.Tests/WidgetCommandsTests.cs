@@ -75,6 +75,16 @@ public class WidgetCommandsTests
     }
 
     [Fact]
+    public void StartFeedbackFlow_MapsFlowAndShowBackButton()
+    {
+        var msg = WidgetCommands.StartFeedbackFlow("bugreport", showBackButton: true);
+        Assert.Equal("start-feedbackflow", msg.Name);
+        var s = _json.Serialize(msg);
+        Assert.Contains("\"flow\":\"bugreport\"", s);
+        Assert.Contains("\"hideBackButton\":false", s);
+    }
+
+    [Fact]
     public void OpenHelpCenterArticle_MapsArticleId()
     {
         var msg = WidgetCommands.OpenHelpCenterArticle("a1", true);

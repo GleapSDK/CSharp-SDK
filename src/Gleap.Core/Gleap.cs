@@ -36,6 +36,7 @@ public static class Gleap
     public static void ShowSurvey(string surveyId, SurveyFormat format = SurveyFormat.Survey) => Backend.ShowSurvey(surveyId, format);
     public static void OpenConversations(bool showBackButton = true) => Backend.OpenConversations(showBackButton);
     public static void StartClassicForm(string formId, bool showBackButton = true) => Backend.StartClassicForm(formId, showBackButton);
+    public static void StartFeedbackFlow(string feedbackFlow, bool showBackButton = true) => Backend.StartFeedbackFlow(feedbackFlow, showBackButton);
     public static void OpenHelpCenterArticle(string articleId, bool showBackButton = true) => Backend.OpenHelpCenterArticle(articleId, showBackButton);
     public static void OpenHelpCenterCollection(string collectionId, bool showBackButton = true) => Backend.OpenHelpCenterCollection(collectionId, showBackButton);
     public static void SearchHelpCenter(string term, bool showBackButton = true) => Backend.SearchHelpCenter(term, showBackButton);
@@ -77,7 +78,7 @@ public static class Gleap
     public static void StopNetworkLogging() => Backend.StopNetworkLogging();
     public static void EnableDebugConsoleLog() => Backend.EnableDebugConsoleLog();
     public static void DisableConsoleLog() => Backend.DisableConsoleLog();
-    public static void SetAiTools(Models.AITool[] tools) => Backend.SetAiTools(tools);
+    public static void RegisterAgentTool(string name, GleapAgentToolHandler handler) => Backend.RegisterAgentTool(name, handler);
     public static void AddReplayFrame(string base64) => Backend.AddReplayFrame(base64);
 
     /// <summary>Test-only reset so xUnit cases don't leak backend state.</summary>
