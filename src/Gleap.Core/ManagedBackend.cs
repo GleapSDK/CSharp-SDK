@@ -59,7 +59,16 @@ public sealed class ManagedBackend : IGleapBackend
     private WidgetBootstrapper _bootstrapper = null!;
     private string _token = "";
     private readonly ConsoleLogBuffer _consoleLog;
+
+    /// <summary>Events for the ticket's <c>customEventLog</c>. Deliberately separate from
+    /// <see cref="_streamedEventLog"/>: this one is never drained by the outbound ping, so a report carries
+    /// the session's whole event history rather than only what happened since the last 5s tick. The native
+    /// SDKs keep the same two arrays.</summary>
     private readonly EventBuffer _eventLog;
+
+    /// <summary>Queue of events still to be flushed to the server on the next ping; drained on success.</summary>
+    private readonly EventBuffer _streamedEventLog;
+
     private readonly NetworkLogBuffer _networkLog;
     private readonly CustomDataStore _customData = new();
     private readonly TicketAttributeStore _ticketAttributes = new();
@@ -85,8 +94,9 @@ public sealed class ManagedBackend : IGleapBackend
     {
         _d = dependencies;
         _clock = new SystemClock(); // concrete field avoids CA1859 (interface-typed local)
-        _consoleLog = new ConsoleLogBuffer(_clock, capacity: 100);
-        _eventLog = new EventBuffer(_clock, capacity: 100);
+        _consoleLog = new ConsoleLogBuffer(_clock, capacity: 1000);   // iOS caps its console log at 1000
+        _eventLog = new EventBuffer(_clock, capacity: 1000);          // iOS caps its report event log at 1000
+        _streamedEventLog = new EventBuffer(_clock, capacity: 1000);
         _networkLog = new NetworkLogBuffer(capacity: 20);
         _collector = new SessionDataCollector(
             _consoleLog, _eventLog, _networkLog,
@@ -132,7 +142,7 @@ public sealed class ManagedBackend : IGleapBackend
         _bridge.ToolExecutionRequested += _ => _events.Emit("toolExecution");
 
         await _session.StartAsync(_language, _d.DeviceType, ct).ConfigureAwait(false);
-        _eventLog.Add("sessionStarted", null);   // per session establishment, matching the native SDKs
+        LogEvent("sessionStarted", null);   // per session establishment, matching the native SDKs
         await _config.LoadAsync(_language, ct).ConfigureAwait(false);
 
         // Real-time channel (optional): once the session exists, connect the WebSocket so outbound
@@ -614,8 +624,9 @@ public sealed class ManagedBackend : IGleapBackend
     /// this on a timer (Core stays threadless).</summary>
     public async Task PollOutboundOnceAsync(CancellationToken ct)
     {
+        var queued = _streamedEventLog.Snapshot();
         var events = new List<object?>();
-        foreach (var e in _eventLog.Snapshot())
+        foreach (var e in queued)
         {
             events.Add(new Dictionary<string, object?> { ["name"] = e.Name, ["data"] = e.Data, ["date"] = e.Date });
         }
@@ -624,9 +635,10 @@ public sealed class ManagedBackend : IGleapBackend
         var ws = _d.Realtime?.IsConnected == true;
         var response = await _api.PingAsync(time, events, _widgetOpen, ws, _session.GleapId, _session.GleapHash, ct)
             .ConfigureAwait(false);
-        // Only clear once the ping actually succeeded (an exception above leaves events
-        // buffered so the next cycle retries them instead of losing them silently).
-        _eventLog.Clear();
+        // Retire exactly what was sent, and only once the ping actually succeeded: an exception above
+        // leaves the queue intact so the next cycle retries instead of losing events silently, and
+        // dropping just the sent prefix keeps anything tracked while the request was in flight.
+        _streamedEventLog.RemoveFirst(queued.Count);
 
         // In ws mode the server deliberately answers with an empty body — outbound actions and the unread
         // count are pushed over the socket instead. Parsing that empty response would yield unreadCount 0
@@ -824,7 +836,7 @@ public sealed class ManagedBackend : IGleapBackend
     {
         _session.ClearIdentity();
         await _session.StartAsync(_language, _d.DeviceType, ct).ConfigureAwait(false);
-        _eventLog.Add("sessionStarted", null);   // a fresh guest session is a new session
+        LogEvent("sessionStarted", null);   // a fresh guest session is a new session
         _bootstrapper.SendSessionUpdate();
         _d.Realtime?.Connect(BuildRealtimeUrl());   // reconnect with the fresh guest session
     }
@@ -838,14 +850,22 @@ public sealed class ManagedBackend : IGleapBackend
     public string FlowConfigJson => _config?.FlowConfigJson ?? "{}";
 
     public void Log(string message, LogLevel level) => _consoleLog.Add(message, level);
-    public void TrackEvent(string name, object? data) => _eventLog.Add(name, data);
+    /// <summary>Records an event into both the report log (kept for the whole session) and the outbound
+    /// queue (drained by the next ping).</summary>
+    private void LogEvent(string name, object? data)
+    {
+        _eventLog.Add(name, data);
+        _streamedEventLog.Add(name, data);
+    }
+
+    public void TrackEvent(string name, object? data) => LogEvent(name, data);
 
     public void TrackPage(string pageName)
     {
         // Doubles as the report's metaData.lastScreenName (hosts skip tracking while the widget is open,
         // so this stays the screen the user was on before opening it — the iOS semantics).
         _lastScreenName = pageName;
-        _eventLog.Add("pageView", new Dictionary<string, object> { ["page"] = pageName });
+        LogEvent("pageView", new Dictionary<string, object> { ["page"] = pageName });
     }
     public void SetCustomData(string key, string value) => _customData.Set(key, value);
     public void AttachCustomData(IReadOnlyDictionary<string, object> data) => _customData.Merge(data);

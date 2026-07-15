@@ -177,6 +177,23 @@ public class ManagedBackendOutboundTests
     }
 
     [Fact]
+    public async Task Poll_DoesNotDrainTheReportEventLog()
+    {
+        var (backend, ch, http) = await NewInitializedAsync();
+        ch.SimulateIncoming("{\"name\":\"ping\"}");
+        backend.TrackEvent("checkout-started", null);
+        http.Responses.Enqueue(new HttpResult(200, "{}"));
+
+        await backend.PollOutboundOnceAsync(CancellationToken.None);
+
+        // The ping drains its own queue; the ticket's customEventLog must still hold the whole session.
+        ch.SimulateIncoming("{\"name\":\"collect-ticket-data\"}");
+        var ticketData = Assert.Single(ch.ExecutedScripts, s => s.Contains("customEventLog"));
+        Assert.Contains("checkout-started", ticketData);
+        Assert.Contains("sessionStarted", ticketData);
+    }
+
+    [Fact]
     public async Task Poll_FlushesEvents_NotResentNextCycle()
     {
         var (backend, ch, http) = await NewInitializedAsync();

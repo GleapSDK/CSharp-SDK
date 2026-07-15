@@ -29,5 +29,9 @@ public sealed class EventBuffer
 
     public IReadOnlyList<GleapEvent> Snapshot() => _buffer.Snapshot();
 
+    /// <summary>Retires the oldest <paramref name="count"/> events — the ones just flushed to the server —
+    /// leaving anything tracked while that request was in flight queued for the next cycle.</summary>
+    public void RemoveFirst(int count) => _buffer.RemoveFirst(count);
+
     public void Clear() => _buffer.Clear();
 }

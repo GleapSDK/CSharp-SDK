@@ -24,5 +24,15 @@ public sealed class RingBuffer<T>
 
     public IReadOnlyList<T> Snapshot() => _items.ToList();
 
+    /// <summary>Drops the oldest <paramref name="count"/> entries. Used to retire exactly the items that
+    /// were handed off (e.g. flushed to the server) without discarding anything added since.</summary>
+    public void RemoveFirst(int count)
+    {
+        for (var i = 0; i < count && _items.Count > 0; i++)
+        {
+            _items.RemoveFirst();
+        }
+    }
+
     public void Clear() => _items.Clear();
 }
