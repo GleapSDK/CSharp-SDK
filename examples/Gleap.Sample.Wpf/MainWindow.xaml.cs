@@ -48,7 +48,7 @@ public partial class MainWindow : Window
             using var http = new HttpClient(Messenger.Backend!.CreateNetworkLoggingHandler());
             try
             {
-                await http.GetAsync("https://gleap.io/").ConfigureAwait(true);
+                await http.GetAsync("https://www.gleap.ai/").ConfigureAwait(true);
             }
             catch (HttpRequestException)
             {

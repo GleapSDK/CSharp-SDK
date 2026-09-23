@@ -10,7 +10,7 @@
   <PropertyGroup>
     <PackageId>Gleap.Extensions.Logging</PackageId>
     <Description>Gleap SDK logging integration — an ILogger provider that forwards Microsoft.Extensions.Logging output into the Gleap session log, so console/network/log context is attached to feedback and bug reports.</Description>
-    <PackageProjectUrl>https://gleap.io</PackageProjectUrl>
+    <PackageProjectUrl>https://www.gleap.ai</PackageProjectUrl>
     <RepositoryUrl>https://github.com/GleapSDK/CSharp-SDK</RepositoryUrl>
     <PackageTags>gleap;feedback;bug-reporting;logging;ilogger;microsoft-extensions-logging</PackageTags>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
