@@ -10,7 +10,7 @@
   <PropertyGroup>
     <PackageId>Gleap.Core</PackageId>
     <Description>Gleap SDK core — the platform-agnostic .NET client (session, native bridge, feedback flow and API) shared by the Windows, MAUI and Unity Gleap integrations. Reference a platform package (Gleap.WebView2 / Gleap.Maui) rather than this directly.</Description>
-    <PackageProjectUrl>https://gleap.io</PackageProjectUrl>
+    <PackageProjectUrl>https://www.gleap.ai</PackageProjectUrl>
     <RepositoryUrl>https://github.com/GleapSDK/CSharp-SDK</RepositoryUrl>
     <PackageTags>gleap;feedback;bug-reporting;support;survey;customer-support</PackageTags>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>

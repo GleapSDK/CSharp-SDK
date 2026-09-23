@@ -16,7 +16,7 @@
   <PropertyGroup>
     <PackageId>Gleap.Maui</PackageId>
     <Description>Gleap SDK for .NET MAUI — in-app feedback, bug reporting, surveys, product tours and live chat on Android, iOS, MacCatalyst and Windows.</Description>
-    <PackageProjectUrl>https://gleap.io</PackageProjectUrl>
+    <PackageProjectUrl>https://www.gleap.ai</PackageProjectUrl>
     <RepositoryUrl>https://github.com/GleapSDK/CSharp-SDK</RepositoryUrl>
     <PackageTags>gleap;feedback;bug-reporting;maui;android;ios;survey;support;live-chat</PackageTags>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>

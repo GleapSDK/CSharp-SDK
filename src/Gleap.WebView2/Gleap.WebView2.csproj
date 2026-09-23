@@ -13,7 +13,7 @@
   <PropertyGroup>
     <PackageId>Gleap.WebView2</PackageId>
     <Description>Gleap SDK for Windows (WPF) — a drop-in WebView2 messenger control for in-app feedback, bug reporting, surveys, product tours and live chat, matching the Gleap web widget on the desktop.</Description>
-    <PackageProjectUrl>https://gleap.io</PackageProjectUrl>
+    <PackageProjectUrl>https://www.gleap.ai</PackageProjectUrl>
     <RepositoryUrl>https://github.com/GleapSDK/CSharp-SDK</RepositoryUrl>
     <PackageTags>gleap;feedback;bug-reporting;wpf;windows;webview2;survey;support;live-chat</PackageTags>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>

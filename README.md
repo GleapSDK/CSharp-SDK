@@ -1,7 +1,7 @@
 # Gleap C# SDK
 
-Cross-platform C# SDK for [Gleap](https://gleap.io) — customer support, in-app messenger, bug
-reporting, feature requests, surveys and more — for **Unity**, **.NET MAUI**, and **Windows
+Cross-platform C# SDK for [Gleap](https://www.gleap.ai). Add customer support, an in-app messenger, bug
+reporting, feature requests and surveys to **Unity**, **.NET MAUI**, and **Windows
 Desktop (WPF/WebView2)**.
 
 > **Status: early access.** The platform-agnostic core is implemented, unit-tested
