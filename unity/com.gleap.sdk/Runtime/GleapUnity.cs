@@ -21,7 +21,7 @@ namespace GleapSDK.Unity
         /// <see cref="IJsonSerializer"/> to override (e.g. <c>SystemTextJsonSerializer</c> on Mono builds).
         /// </summary>
         /// <param name="channel">The WebView channel that renders the widget.</param>
-        /// <param name="projectId">Your Project ID (Gleap dashboard: Settings &gt; Project; formerly "SDK key").</param>
+        /// <param name="projectId">Your Project ID (Gleap dashboard: Settings → Project → General; formerly "SDK key").</param>
         /// <param name="json">Optional JSON serializer.</param>
         public static async Task<ManagedBackend> AttachAsync(
             IWebViewChannel channel, string projectId, IJsonSerializer? json = null)

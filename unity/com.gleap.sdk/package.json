@@ -5,7 +5,7 @@
   "description": "Gleap C# SDK for Unity. Reuses the platform-agnostic Gleap.Core engine; a WebView plugin providing IWebViewChannel is required to render the widget on standalone/mobile.",
   "unity": "2021.3",
   "license": "Proprietary — see LICENSE.md",
-  "documentationUrl": "https://docs.gleap.ai/documentation/unity/README",
+  "documentationUrl": "https://docs.gleap.ai/en/articles/664-unity-sdk-setup",
   "keywords": [
     "gleap",
     "feedback",

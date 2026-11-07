@@ -24,8 +24,8 @@ public static class Gleap
     public static void UseBackend(IGleapBackend backend) => _backend = backend;
 
     /// <summary>Starts the session and loads the project config.</summary>
-    /// <param name="projectId">Your Project ID (Gleap dashboard: Settings &gt; Project). Formerly called
-    /// "SDK key"; the value is the same.</param>
+    /// <param name="projectId">Your Project ID (Gleap dashboard: Settings → Project → General). Formerly
+    /// called "SDK key"; the value is the same.</param>
     /// <param name="ct">Cancellation token.</param>
     public static Task InitializeAsync(string projectId, CancellationToken ct = default) =>
         Backend.InitializeAsync(projectId, ct);
@@ -54,8 +54,20 @@ public static class Gleap
     public static void OpenChecklist(string checklistId, bool showBackButton = true) => Backend.OpenChecklist(checklistId, showBackButton);
     public static void StartChecklist(string outboundId, bool showBackButton = true) => Backend.StartChecklist(outboundId, showBackButton);
     public static void AskAI(string question, bool showBackButton = true) => Backend.AskAI(question, showBackButton);
+    /// <summary>
+    /// Identifies the current user; called with a user ID and properties, this creates an unsigned contact.
+    /// Identity tokens (<c>SetUserJwt</c>) are not yet available in the C# SDK; see
+    /// https://docs.gleap.ai/en/articles/709-customer-identity.
+    /// </summary>
+    /// <param name="userId">Your app's ID for the user.</param>
+    /// <param name="properties">Optional contact data (email, name, company, ...).</param>
+    /// <param name="userHash">Older integrations that pass a user hash keep working; see
+    /// https://docs.gleap.ai/en/articles/16752008-upgrade-to-identity-tokens.</param>
+    /// <param name="ct">Cancellation token.</param>
     public static Task IdentifyContactAsync(string userId, Models.GleapUserProperty? properties = null, string? userHash = null, CancellationToken ct = default) => Backend.IdentifyContactAsync(userId, properties, userHash, ct);
     public static Task UpdateContactAsync(Models.GleapUserProperty properties, CancellationToken ct = default) => Backend.UpdateContactAsync(properties, ct);
+    /// <summary>Clears the identified user and starts a new anonymous session. Call it on logout.</summary>
+    /// <param name="ct">Cancellation token.</param>
     public static Task ClearIdentityAsync(CancellationToken ct = default) => Backend.ClearIdentityAsync(ct);
     public static bool IsUserIdentified() => Backend.IsUserIdentified();
     public static Models.GleapUserProperty? GetIdentity() => Backend.GetIdentity();

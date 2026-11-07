@@ -13,6 +13,22 @@ Desktop (WPF/WebView2)**.
 > MAUI and Unity bindings compile (their mobile/WebGL targets need the platform SDKs to build + run on
 > a device). See [Status & parity](#status--parity). Past "does it work", not yet a 1.0.
 
+## Install
+
+Current release: **0.1.0-beta.2**.
+
+| Platform | Package | Setup guide |
+|---|---|---|
+| Windows Desktop (WPF/WebView2) | NuGet [`Gleap.WebView2`](https://www.nuget.org/packages/Gleap.WebView2) | [Windows desktop SDK setup](https://docs.gleap.ai/en/articles/616-windows-desktop-sdk-setup) |
+| .NET MAUI | NuGet [`Gleap.Maui`](https://www.nuget.org/packages/Gleap.Maui) | [.NET MAUI SDK setup](https://docs.gleap.ai/en/articles/640-net-maui-sdk-setup) |
+| Unity | UPM git URL `https://github.com/GleapSDK/CSharp-SDK.git?path=/unity/com.gleap.sdk#v0.1.0-beta.2` | [Unity SDK setup](https://docs.gleap.ai/en/articles/664-unity-sdk-setup) |
+
+Both NuGet packages pull in [`Gleap.Core`](https://www.nuget.org/packages/Gleap.Core) (the shared engine).
+
+```bash
+dotnet add package Gleap.WebView2 --prerelease   # or Gleap.Maui
+```
+
 ## How it works
 
 The real chat/messenger/help-center/survey UI is the same **web widget** used by all Gleap SDKs
@@ -84,8 +100,13 @@ Gleap.TrackEvent("checkout_completed");
 (For full control you can instead host a `WebView2` yourself and call
 `GleapWebView2Host.AttachAsync(webView, "YOUR_PROJECT_ID")`.)
 
-Find the Project ID in the Gleap dashboard under Settings > Project. It was called "SDK key" before; the
-value is the same, and `GleapMessenger.SdkKey` still works (marked `[Obsolete]`).
+Find the Project ID in the Gleap dashboard under **Settings → Project → General**. It was called "SDK key"
+before; the value is the same, and `GleapMessenger.SdkKey` still works (marked `[Obsolete]`).
+
+`IdentifyContactAsync(userId, properties)` creates an unsigned contact; call `ClearIdentityAsync()` on
+logout. Identity tokens (`SetUserJwt`, see [Customer identity](https://docs.gleap.ai/en/articles/709-customer-identity))
+are not yet available in the C# SDK. Older integrations that pass a user hash to `IdentifyContactAsync`
+keep working; see [Upgrade to identity tokens](https://docs.gleap.ai/en/articles/16752008-upgrade-to-identity-tokens).
 
 ## Status & parity
 
@@ -106,6 +127,7 @@ native iOS/Android SDK source):
 | **.NET MAUI** (Android / iOS / Windows) | ✅ `MauiWebViewChannel` per platform + sample; **net10.0-windows compiles**; Android/iOS build+run need the platform SDKs (Android Studio / a Mac) |
 | **Unity** (UPM) | ✅ package + bundled Core DLLs + IL2CPP-safe `NewtonsoftJsonSerializer` (camelCase + null-omit + raw `JsonElement` pass-through, and honors System.Text.Json `[JsonPropertyName]` so it stays byte-identical to the STJ output) + `link.xml` IL2CPP strip-protection + plugin-agnostic channel; the Unity-dependent runtime (PlayerPrefs/metadata marshalled onto the main-thread pump) is verified on Unity editor import |
 | In-app `notification` toasts, mobile activation (shake/screenshot), push, WebSocket, Unity WebGL (JS-SDK path) | not built (platform/runtime-dependent) |
+| Identity tokens (`SetUserJwt` / `SetUserJwtProvider`) | not built yet |
 
 Design docs and per-feature implementation plans live under `docs/superpowers/`.
 

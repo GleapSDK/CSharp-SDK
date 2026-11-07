@@ -18,6 +18,10 @@ public static class GleapWebView2Host
     /// <summary>SDK version reported in metadata. Single source of truth: <see cref="Gleap.Version"/>.</summary>
     public const string SdkVersion = Gleap.Version;
 
+    /// <summary>Hosts the Gleap widget in <paramref name="webView"/> and initializes the session/config.</summary>
+    /// <param name="webView">The WPF WebView2 control that renders the widget.</param>
+    /// <param name="projectId">Your Project ID (Gleap dashboard: Settings → Project → General; formerly "SDK key").</param>
+    /// <param name="endpoints">Optional endpoint overrides; defaults to <see cref="GleapEndpoints.Default"/>.</param>
     public static async Task<ManagedBackend> AttachAsync(
         Microsoft.Web.WebView2.Wpf.IWebView2 webView, string projectId, GleapEndpoints? endpoints = null)
     {

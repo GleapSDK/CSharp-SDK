@@ -2,7 +2,7 @@
 
 Unity binding that reuses the platform-agnostic **`Gleap.Core`** engine. Unity supplies persistence
 (`PlayerPrefs`), device metadata (`SystemInfo`), and console-log capture; you supply a WebView channel
-that renders the widget.
+that renders the widget. Setup guide: [Unity SDK setup](https://docs.gleap.ai/en/articles/664-unity-sdk-setup).
 
 > **Status: authored; the JSON serializer is verified, the rest is verify-on-import** (needs a Unity
 > project + a WebView plugin). `Gleap.Core.dll` and its dependencies are already bundled in
@@ -13,8 +13,9 @@ that renders the widget.
 1. `Gleap.Core.dll` **and its dependencies are already in `Runtime/Plugins/`** (built for
    `netstandard2.0`). If you change `Gleap.Core`, rebuild and recopy:
    `dotnet publish src/Gleap.Core -c Release -o <tmp>` then copy the `*.dll` into `Runtime/Plugins/`.
-2. Add the package (Package Manager → *Add package from disk* → `com.gleap.sdk/package.json`), or copy
-   it under `Assets/`. It depends on `com.unity.nuget.newtonsoft-json` (declared in `package.json`).
+2. Add the package via Package Manager → *Add package from git URL*:
+   `https://github.com/GleapSDK/CSharp-SDK.git?path=/unity/com.gleap.sdk#v0.1.0-beta.2` (the release tag
+   is the install ref). Or *Add package from disk* → `com.gleap.sdk/package.json`, or copy it under `Assets/`. It depends on `com.unity.nuget.newtonsoft-json` (declared in `package.json`).
 3. On first import, if Unity reports **duplicate assemblies** for framework facades it already ships
    (`System.Buffers`, `System.Memory`, `System.Runtime.CompilerServices.Unsafe`, `System.Numerics.Vectors`,
    `System.Threading.Tasks.Extensions`), delete those specific DLLs from `Runtime/Plugins/`. Keep
@@ -28,7 +29,7 @@ using GleapSDK.Unity;
 
 // Bring your own WebView (see below); route its page->native messages into the channel.
 var channel = new GleapUnityWebViewChannel(js => myWebView.ExecuteJavaScript(js));
-await GleapUnity.AttachAsync(channel, "YOUR_PROJECT_ID"); // Project ID: Gleap dashboard, Settings > Project
+await GleapUnity.AttachAsync(channel, "YOUR_PROJECT_ID"); // Project ID: Gleap dashboard, Settings → Project → General
 Gleap.Open();
 // Optional: add GleapUnityLogHook to a persistent GameObject to capture Debug.Log output.
 ```
