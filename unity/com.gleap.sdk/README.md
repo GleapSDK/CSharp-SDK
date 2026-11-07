@@ -14,7 +14,7 @@ that renders the widget. Setup guide: [Unity SDK setup](https://docs.gleap.ai/en
    `netstandard2.0`). If you change `Gleap.Core`, rebuild and recopy:
    `dotnet publish src/Gleap.Core -c Release -o <tmp>` then copy the `*.dll` into `Runtime/Plugins/`.
 2. Add the package via Package Manager → *Add package from git URL*:
-   `https://github.com/GleapSDK/CSharp-SDK.git?path=/unity/com.gleap.sdk#v0.1.0-beta.2` (the release tag
+   `https://github.com/GleapSDK/CSharp-SDK.git?path=/unity/com.gleap.sdk#v0.1.0-beta.3` (the release tag
    is the install ref). Or *Add package from disk* → `com.gleap.sdk/package.json`, or copy it under `Assets/`. It depends on `com.unity.nuget.newtonsoft-json` (declared in `package.json`).
 3. On first import, if Unity reports **duplicate assemblies** for framework facades it already ships
    (`System.Buffers`, `System.Memory`, `System.Runtime.CompilerServices.Unsafe`, `System.Numerics.Vectors`,
