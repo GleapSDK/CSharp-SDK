@@ -81,12 +81,12 @@ public class GleapMessenger : Grid, IDisposable
     private Action<object?>? _onOutboundSent;
 
     /// <summary>
-    /// Your Project ID (Gleap dashboard: Settings &gt; Project). Set before the control loads (e.g. in
-    /// the host's constructor). Formerly called "SDK key"; the value is the same.
+    /// Your Project ID (Gleap dashboard: Settings → Project → General). Set before the control loads
+    /// (e.g. in the host's constructor). Formerly called "SDK key"; the value is the same.
     /// </summary>
     public string? ProjectId { get; set; }
 
-    /// <summary>Former name of <see cref="ProjectId"/> (same value).</summary>
+    /// <summary>Obsolete former name of <see cref="ProjectId"/> (same value); it keeps working.</summary>
     [Obsolete("Use ProjectId. The value is the same.")]
     public string? SdkKey
     {

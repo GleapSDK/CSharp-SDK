@@ -18,6 +18,9 @@ public static class GleapMaui
 {
     public const string SdkVersion = Gleap.Version;
 
+    /// <summary>Wires the Gleap facade to <paramref name="channel"/> and initializes the session/config.</summary>
+    /// <param name="channel">The MAUI WebView channel that renders the widget.</param>
+    /// <param name="projectId">Your Project ID (Gleap dashboard: Settings → Project → General; formerly "SDK key").</param>
     public static async Task<ManagedBackend> AttachAsync(MauiWebViewChannel channel, string projectId)
     {
         await channel.InitializeAsync().ConfigureAwait(true);

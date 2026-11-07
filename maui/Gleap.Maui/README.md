@@ -2,7 +2,7 @@
 
 MAUI binding that reuses the platform-agnostic **`Gleap.Core`** engine. MAUI supplies persistence
 (`Preferences`), device metadata (`DeviceInfo`), and — the one piece you wire per platform — the
-native WebView bridge.
+native WebView bridge. Setup guide: [.NET MAUI SDK setup](https://docs.gleap.ai/en/articles/640-net-maui-sdk-setup).
 
 > **Status: authored, NOT yet compiled/verified** (requires the MAUI workload + platform SDKs). The
 > Core-reusing parts (store, metadata, bootstrap) are complete; the **WebView channel is the
@@ -14,7 +14,7 @@ using GleapSDK;
 using GleapSDK.Maui;
 
 // `channel` implements IWebViewChannel over the platform WebView (see next section).
-await GleapMaui.AttachAsync(channel, "YOUR_PROJECT_ID"); // Project ID: Gleap dashboard, Settings > Project
+await GleapMaui.AttachAsync(channel, "YOUR_PROJECT_ID"); // Project ID: Gleap dashboard, Settings → Project → General
 Gleap.Open();
 ```
 
