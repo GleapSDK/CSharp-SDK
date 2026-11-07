@@ -20,8 +20,11 @@ namespace GleapSDK.Unity
         /// Defaults to the IL2CPP-safe <see cref="NewtonsoftJsonSerializer"/>; pass a different
         /// <see cref="IJsonSerializer"/> to override (e.g. <c>SystemTextJsonSerializer</c> on Mono builds).
         /// </summary>
+        /// <param name="channel">The WebView channel that renders the widget.</param>
+        /// <param name="projectId">Your Project ID (Gleap dashboard: Settings &gt; Project; formerly "SDK key").</param>
+        /// <param name="json">Optional JSON serializer.</param>
         public static async Task<ManagedBackend> AttachAsync(
-            IWebViewChannel channel, string sdkKey, IJsonSerializer? json = null)
+            IWebViewChannel channel, string projectId, IJsonSerializer? json = null)
         {
             // Must run on the Unity main thread: creates the pump that marshals PlayerPrefs writes back
             // from Core's off-thread (ConfigureAwait(false)) continuations. Also fixes the metadata
@@ -41,7 +44,7 @@ namespace GleapSDK.Unity
             });
 
             Gleap.UseBackend(backend);
-            await backend.InitializeAsync(sdkKey, CancellationToken.None);
+            await backend.InitializeAsync(projectId, CancellationToken.None);
             return backend;
         }
     }

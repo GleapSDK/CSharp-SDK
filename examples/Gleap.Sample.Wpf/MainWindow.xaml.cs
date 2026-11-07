@@ -9,14 +9,17 @@ namespace GleapSDK.Sample.Wpf;
 
 public partial class MainWindow : Window
 {
-    // Replace with your own project SDK key. Kept here (not in a text box) so the demo
-    // initializes Gleap purely in code, exactly like Gleap.initialize("KEY") in the JS SDK.
-    private const string DemoSdkKey = "ogWhNhuiZcGWrva5nlDS8l7a78OfaLlV";
+    // Replace with your own Project ID. Kept here (not in a text box) so the demo
+    // initializes Gleap purely in code, exactly like Gleap.initialize("PROJECT_ID") in the JS SDK.
+    private const string DemoProjectId = "ogWhNhuiZcGWrva5nlDS8l7a78OfaLlV";
 
     public MainWindow()
     {
         InitializeComponent();
-        Messenger.SdkKey = Environment.GetEnvironmentVariable("gleap.sdkkey") ?? DemoSdkKey;
+        // gleap.sdkkey is the former name of the gleap.projectid variable.
+        Messenger.ProjectId = Environment.GetEnvironmentVariable("gleap.projectid")
+            ?? Environment.GetEnvironmentVariable("gleap.sdkkey")
+            ?? DemoProjectId;
 
         // Once Gleap is ready, record some sample activity so a submitted ticket shows the full
         // picture a real app would attach automatically.

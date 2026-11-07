@@ -14,7 +14,7 @@ public class GleapFacadeTests
         public string? StartedFeedbackFlow { get; private set; }
         public string? RegisteredAgentTool { get; private set; }
 
-        public Task InitializeAsync(string token, CancellationToken ct) => Task.CompletedTask;
+        public Task InitializeAsync(string projectId, CancellationToken ct) => Task.CompletedTask;
         public void RegisterListener(string eventName, Action<object?> handler) { }
         public void RemoveListener(string eventName, Action<object?> handler) { }
         public Task PollOutboundOnceAsync(CancellationToken ct) => Task.CompletedTask;

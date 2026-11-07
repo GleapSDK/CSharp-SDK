@@ -124,10 +124,10 @@ public sealed class ManagedBackend : IGleapBackend
     public void RegisterListener(string eventName, System.Action<object?> handler) => _events.Register(eventName, handler);
     public void RemoveListener(string eventName, System.Action<object?> handler) => _events.Unregister(eventName, handler);
 
-    public async Task InitializeAsync(string token, CancellationToken ct)
+    public async Task InitializeAsync(string projectId, CancellationToken ct)
     {
-        _token = token;
-        _api = new ApiClient(_d.Http, _d.Json, _d.Endpoints, token, _d.Platform, _d.SdkVersion);
+        _token = projectId;
+        _api = new ApiClient(_d.Http, _d.Json, _d.Endpoints, projectId, _d.Platform, _d.SdkVersion);
         _session = new SessionManager(_api, _d.Store);
         _config = new ConfigManager(_api);
 

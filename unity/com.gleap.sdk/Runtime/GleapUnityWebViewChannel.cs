@@ -24,7 +24,7 @@ namespace GleapSDK.Unity
     /// web.MessageEmitted += (s, e) => channel.ReceiveFromWidget(e.Value); // if you post via window.vuplex
     /// // or inject GleapUnityWebViewChannel.BridgeShim with your own postMessage hook that calls ReceiveFromWidget.
     /// await web.LoadUrl(GleapEndpoints.Default.FrameUrl);
-    /// await GleapUnity.AttachAsync(channel, "YOUR_SDK_KEY");
+    /// await GleapUnity.AttachAsync(channel, "YOUR_PROJECT_ID");
     /// </code>
     /// </example>
     public sealed class GleapUnityWebViewChannel : IWebViewChannel

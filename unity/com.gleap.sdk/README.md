@@ -28,7 +28,7 @@ using GleapSDK.Unity;
 
 // Bring your own WebView (see below); route its page->native messages into the channel.
 var channel = new GleapUnityWebViewChannel(js => myWebView.ExecuteJavaScript(js));
-await GleapUnity.AttachAsync(channel, "YOUR_SDK_KEY"); // IL2CPP-safe Newtonsoft serializer by default
+await GleapUnity.AttachAsync(channel, "YOUR_PROJECT_ID"); // Project ID: Gleap dashboard, Settings > Project
 Gleap.Open();
 // Optional: add GleapUnityLogHook to a persistent GameObject to capture Debug.Log output.
 ```

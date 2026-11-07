@@ -72,7 +72,7 @@ using GleapSDK.WebView2;
 
 // Drop the launcher control into your window: it floats a button (styled from your project config)
 // that slides the messenger in as an overlay and back, like the web SDK. Session/config load lazily.
-var messenger = new GleapMessenger { SdkKey = "YOUR_SDK_KEY" };
+var messenger = new GleapMessenger { ProjectId = "YOUR_PROJECT_ID" };
 rootGrid.Children.Add(messenger);
 
 // Drive it from anywhere via the stable facade:
@@ -82,7 +82,10 @@ Gleap.TrackEvent("checkout_completed");
 ```
 
 (For full control you can instead host a `WebView2` yourself and call
-`GleapWebView2Host.AttachAsync(webView, "YOUR_SDK_KEY")`.)
+`GleapWebView2Host.AttachAsync(webView, "YOUR_PROJECT_ID")`.)
+
+Find the Project ID in the Gleap dashboard under Settings > Project. It was called "SDK key" before; the
+value is the same, and `GleapMessenger.SdkKey` still works (marked `[Obsolete]`).
 
 ## Status & parity
 

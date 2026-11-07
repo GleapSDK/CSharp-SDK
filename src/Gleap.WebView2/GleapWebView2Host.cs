@@ -19,7 +19,7 @@ public static class GleapWebView2Host
     public const string SdkVersion = Gleap.Version;
 
     public static async Task<ManagedBackend> AttachAsync(
-        Microsoft.Web.WebView2.Wpf.IWebView2 webView, string sdkKey, GleapEndpoints? endpoints = null)
+        Microsoft.Web.WebView2.Wpf.IWebView2 webView, string projectId, GleapEndpoints? endpoints = null)
     {
         var resolvedEndpoints = endpoints ?? GleapEndpoints.Default;
 
@@ -44,7 +44,7 @@ public static class GleapWebView2Host
         // Images/attachments tapped in a conversation: the messenger panel is far too narrow to show them,
         // so hand them to the system viewer (the browser) instead of dropping the tap.
         backend.RegisterListener("openImage", url => OpenExternalUrl(url as string));
-        await backend.InitializeAsync(sdkKey, CancellationToken.None).ConfigureAwait(true);
+        await backend.InitializeAsync(projectId, CancellationToken.None).ConfigureAwait(true);
 
         // Navigate only after the backend (and its WidgetBootstrapper) is listening, so the
         // widget's ping is handled and answered with config-update/session-update.

@@ -12,7 +12,8 @@ namespace GleapSDK;
 /// </summary>
 public interface IGleapBackend
 {
-    Task InitializeAsync(string token, CancellationToken ct);
+    /// <summary>Starts the session and loads the config for the Project ID (formerly "SDK key").</summary>
+    Task InitializeAsync(string projectId, CancellationToken ct);
     void RegisterListener(string eventName, System.Action<object?> handler);
     void RemoveListener(string eventName, System.Action<object?> handler);
     Task PollOutboundOnceAsync(CancellationToken ct);

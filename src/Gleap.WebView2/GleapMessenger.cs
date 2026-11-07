@@ -22,7 +22,7 @@ namespace GleapSDK.WebView2;
 /// A drop-in WPF control that reproduces the JavaScript-SDK experience on the desktop: a round
 /// floating launcher button that slides the Gleap messenger in as a rounded bottom-right overlay,
 /// and slides it back out on close. Host apps place this control on top of their own UI and set
-/// <see cref="SdkKey"/> — nothing else is required.
+/// <see cref="ProjectId"/> — nothing else is required.
 ///
 /// <para>The messenger is hosted in a <see cref="Microsoft.Web.WebView2.Wpf.WebView2CompositionControl"/>
 /// (airspace-free composition rendering), so it supports true rounded corners, a smooth slide/fade
@@ -31,7 +31,7 @@ namespace GleapSDK.WebView2;
 /// is live before opening.</para>
 ///
 /// <code>
-/// var messenger = new GleapMessenger { SdkKey = "YOUR_SDK_KEY" };
+/// var messenger = new GleapMessenger { ProjectId = "YOUR_PROJECT_ID" };
 /// rootGrid.Children.Add(messenger);
 /// </code>
 /// After load the static <see cref="Gleap"/> facade drives the same messenger
@@ -80,8 +80,19 @@ public class GleapMessenger : Grid, IDisposable
     private Action<object?>? _onNotificationCountUpdated;
     private Action<object?>? _onOutboundSent;
 
-    /// <summary>Project SDK key. Set before the control loads (e.g. in the host's constructor).</summary>
-    public string? SdkKey { get; set; }
+    /// <summary>
+    /// Your Project ID (Gleap dashboard: Settings &gt; Project). Set before the control loads (e.g. in
+    /// the host's constructor). Formerly called "SDK key"; the value is the same.
+    /// </summary>
+    public string? ProjectId { get; set; }
+
+    /// <summary>Former name of <see cref="ProjectId"/> (same value).</summary>
+    [Obsolete("Use ProjectId. The value is the same.")]
+    public string? SdkKey
+    {
+        get => ProjectId;
+        set => ProjectId = value;
+    }
 
     /// <summary>Width of the messenger overlay panel (default 400).</summary>
     public double PanelWidth { get; set; } = 400;
@@ -246,7 +257,7 @@ public class GleapMessenger : Grid, IDisposable
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
-        if (_backend == null && !_initializing && !string.IsNullOrEmpty(SdkKey))
+        if (_backend == null && !_initializing && !string.IsNullOrEmpty(ProjectId))
         {
             await TryInitializeAsync().ConfigureAwait(true);
         }
@@ -322,7 +333,7 @@ public class GleapMessenger : Grid, IDisposable
 
     private async Task OpenAsync()
     {
-        if (_disposed || _isOpen || string.IsNullOrEmpty(SdkKey))
+        if (_disposed || _isOpen || string.IsNullOrEmpty(ProjectId))
         {
             return;
         }
@@ -375,7 +386,7 @@ public class GleapMessenger : Grid, IDisposable
     }
 
     /// <summary>
-    /// Creates the messenger session against <see cref="SdkKey"/> and wires it to this control.
+    /// Creates the messenger session against <see cref="ProjectId"/> and wires it to this control.
     /// Idempotent; called automatically on load to preload the widget invisibly.
     /// </summary>
     public async Task InitializeAsync(GleapSDK.Http.GleapEndpoints? endpoints = null)
@@ -384,9 +395,9 @@ public class GleapMessenger : Grid, IDisposable
         {
             return;
         }
-        if (string.IsNullOrEmpty(SdkKey))
+        if (string.IsNullOrEmpty(ProjectId))
         {
-            throw new InvalidOperationException("GleapMessenger.SdkKey must be set before initialization.");
+            throw new InvalidOperationException("GleapMessenger.ProjectId must be set before initialization.");
         }
 
         _initializing = true;
@@ -394,7 +405,7 @@ public class GleapMessenger : Grid, IDisposable
         {
             _endpoints = endpoints ?? GleapSDK.Http.GleapEndpoints.Default;
             // Composition rendering + Opacity 0 keeps the preload invisible (no flash).
-            _backend = await GleapWebView2Host.AttachAsync(_webView, SdkKey!, endpoints).ConfigureAwait(true);
+            _backend = await GleapWebView2Host.AttachAsync(_webView, ProjectId!, endpoints).ConfigureAwait(true);
             _notifications = new GleapNotificationStack(this, OnNotificationClicked);
             ApplyLauncherStyle();
 
