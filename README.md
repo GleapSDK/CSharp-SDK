@@ -15,13 +15,13 @@ Desktop (WPF/WebView2)**.
 
 ## Install
 
-Current release: **0.1.0-beta.2**.
+Current release: **0.1.0-beta.3**.
 
 | Platform | Package | Setup guide |
 |---|---|---|
 | Windows Desktop (WPF/WebView2) | NuGet [`Gleap.WebView2`](https://www.nuget.org/packages/Gleap.WebView2) | [Windows desktop SDK setup](https://docs.gleap.ai/en/articles/616-windows-desktop-sdk-setup) |
 | .NET MAUI | NuGet [`Gleap.Maui`](https://www.nuget.org/packages/Gleap.Maui) | [.NET MAUI SDK setup](https://docs.gleap.ai/en/articles/640-net-maui-sdk-setup) |
-| Unity | UPM git URL `https://github.com/GleapSDK/CSharp-SDK.git?path=/unity/com.gleap.sdk#v0.1.0-beta.2` | [Unity SDK setup](https://docs.gleap.ai/en/articles/664-unity-sdk-setup) |
+| Unity | UPM git URL `https://github.com/GleapSDK/CSharp-SDK.git?path=/unity/com.gleap.sdk#v0.1.0-beta.3` | [Unity SDK setup](https://docs.gleap.ai/en/articles/664-unity-sdk-setup) |
 
 Both NuGet packages pull in [`Gleap.Core`](https://www.nuget.org/packages/Gleap.Core) (the shared engine).
 
