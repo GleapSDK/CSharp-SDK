@@ -7,8 +7,8 @@ namespace Gleap.Sample.Maui;
 
 public partial class MainPage : ContentPage
 {
-    // Replace with your project SDK key (Gleap's own public demo key here so it runs out of the box).
-    private const string DemoSdkKey = "ogWhNhuiZcGWrva5nlDS8l7a78OfaLlV";
+    // Replace with your Project ID (Gleap's own public demo project here so it runs out of the box).
+    private const string DemoProjectId = "ogWhNhuiZcGWrva5nlDS8l7a78OfaLlV";
 
     private bool _attached;
 
@@ -23,7 +23,7 @@ public partial class MainPage : ContentPage
         {
             Status.Text = "Attaching…";
             var channel = new MauiWebViewChannel(Web);
-            await GleapMaui.AttachAsync(channel, DemoSdkKey);
+            await GleapMaui.AttachAsync(channel, DemoProjectId);
             _attached = true;
             Status.Text = "Attached. Use the buttons to drive the messenger.";
         }

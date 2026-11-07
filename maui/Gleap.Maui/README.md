@@ -14,7 +14,7 @@ using GleapSDK;
 using GleapSDK.Maui;
 
 // `channel` implements IWebViewChannel over the platform WebView (see next section).
-await GleapMaui.AttachAsync(channel, "YOUR_SDK_KEY");
+await GleapMaui.AttachAsync(channel, "YOUR_PROJECT_ID"); // Project ID: Gleap dashboard, Settings > Project
 Gleap.Open();
 ```
 

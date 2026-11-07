@@ -12,7 +12,7 @@ public static class Gleap
 {
     /// <summary>The SDK version reported to Gleap and shared by every platform package.
     /// Single source of truth — the NuGet/UPM package versions are kept in step with it.</summary>
-    public const string Version = "0.1.0-beta.1";
+    public const string Version = "0.1.0-beta.2";
 
     private static IGleapBackend? _backend;
 
@@ -23,8 +23,12 @@ public static class Gleap
     /// <summary>Attach the platform backend. Called by platform packages, not app code.</summary>
     public static void UseBackend(IGleapBackend backend) => _backend = backend;
 
-    public static Task InitializeAsync(string token, CancellationToken ct = default) =>
-        Backend.InitializeAsync(token, ct);
+    /// <summary>Starts the session and loads the project config.</summary>
+    /// <param name="projectId">Your Project ID (Gleap dashboard: Settings &gt; Project). Formerly called
+    /// "SDK key"; the value is the same.</param>
+    /// <param name="ct">Cancellation token.</param>
+    public static Task InitializeAsync(string projectId, CancellationToken ct = default) =>
+        Backend.InitializeAsync(projectId, ct);
 
     public static void RegisterListener(string eventName, System.Action<object?> handler) => Backend.RegisterListener(eventName, handler);
     public static void RemoveListener(string eventName, System.Action<object?> handler) => Backend.RemoveListener(eventName, handler);

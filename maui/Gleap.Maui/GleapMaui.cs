@@ -18,7 +18,7 @@ public static class GleapMaui
 {
     public const string SdkVersion = Gleap.Version;
 
-    public static async Task<ManagedBackend> AttachAsync(MauiWebViewChannel channel, string sdkKey)
+    public static async Task<ManagedBackend> AttachAsync(MauiWebViewChannel channel, string projectId)
     {
         await channel.InitializeAsync().ConfigureAwait(true);
 
@@ -38,7 +38,7 @@ public static class GleapMaui
 
         Gleap.UseBackend(backend);
         backend.RegisterListener("openURL", url => OpenExternalUrl(url as string));
-        await backend.InitializeAsync(sdkKey, CancellationToken.None).ConfigureAwait(true);
+        await backend.InitializeAsync(projectId, CancellationToken.None).ConfigureAwait(true);
 
         // Navigate only after the backend (WidgetBootstrapper) is listening for the widget's ping.
         channel.Navigate();

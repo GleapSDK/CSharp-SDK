@@ -8,15 +8,16 @@ Runs the WPF sample that hosts the live Gleap widget via WebView2. **Windows onl
 - **.NET 8 SDK** (the repo also builds on the .NET 10 SDK) + the **.NET 8 Desktop Runtime** (to run the
   `net8.0-windows` WPF app). `dotnet --version` should be >= 8.
 - WebView2 Runtime (preinstalled on current Windows; else install the Evergreen Runtime from Microsoft).
-- Optional: your own Gleap **project SDK key** (a public demo key is already hard-coded in the sample so
-  it runs out of the box).
+- Optional: your own Gleap **Project ID** (formerly "SDK key"; a public demo project is already
+  hard-coded in the sample so it runs out of the box).
 
 ## Build & run
 ```
 cd CSharp-SDK
 dotnet run --project examples\Gleap.Sample.Wpf
 ```
-To use your own project, set `MainWindow.DemoSdkKey` in the sample (or the `gleap.sdkkey` env var).
+To use your own project, set `MainWindow.DemoProjectId` in the sample (or the `gleap.projectid` env var;
+the former `gleap.sdkkey` still works).
 
 Optional strict build (quality gate): `dotnet build Gleap.Windows.sln -warnaserror`.
 
