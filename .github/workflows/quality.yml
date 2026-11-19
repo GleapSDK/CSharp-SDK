@@ -1,0 +1,71 @@
+name: Quality
+
+# What a PR adds, compared with where it left the base: compiler, analyzer and whitespace findings on the added lines
+# (scripts/lint-new.sh), and the public API of the shipped assemblies against a build of the base (scripts/api-new.sh).
+# Old code may stay as it is but must not get worse; new code keeps .claude/rules/code-conventions.md.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+
+jobs:
+  quality:
+    # macOS can build every shipped project, Gleap.Maui's iOS and Mac Catalyst targets included.
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The PR's own commit, not the merge commit, and the history to find the fork point.
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      # The .NET 10 SDK in a folder of its own, so the runner's newer SDKs and their newer rules do not judge the PR.
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
+        with:
+          dotnet-version: 10.0.x
+      - name: Install the maui workload when the PR touches Gleap.Maui or the build
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ -n "$(git diff --name-only "$(git merge-base "origin/$BASE_REF" HEAD)" HEAD -- maui Directory.Build.props global.json)" ]; then
+            dotnet workload install maui
+          fi
+      # The base branch's copy of the checks judges the PR, so a PR cannot loosen them with its own edits: its rules
+      # (.editorconfig), its scripts and its ApiCompat version. The first PR that adds them has no such copy and runs
+      # its own.
+      - name: Take the checks from the base branch
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          gate="$RUNNER_TEMP/gate"
+          mkdir -p "$gate"
+          for f in scripts/lint-new.sh scripts/api-new.sh; do
+            if git cat-file -e "origin/$BASE_REF:$f" 2>/dev/null; then git show "origin/$BASE_REF:$f" >"$gate/$(basename "$f")"; else cp "$f" "$gate/"; fi
+          done
+          for f in .editorconfig dotnet-tools.json; do
+            if git cat-file -e "origin/$BASE_REF:$f" 2>/dev/null; then git show "origin/$BASE_REF:$f" >"$f"; fi
+          done
+          changed="$(git diff --name-only "$(git merge-base "origin/$BASE_REF" HEAD)" HEAD -- .editorconfig Directory.Build.props global.json dotnet-tools.json scripts .claude/hooks .claude/settings.json .githooks .github/workflows)"
+          if [ -n "$changed" ]; then
+            echo "::warning title=This PR changes the checks::Review these on purpose, they apply only after the merge: $(echo $changed)"
+          fi
+      - name: Lint what the PR adds
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: sh "$RUNNER_TEMP/gate/lint-new.sh" --base "origin/$BASE_REF"
+      - name: Public API compared with the base
+        if: ${{ !cancelled() }}
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: sh "$RUNNER_TEMP/gate/api-new.sh" --base "origin/$BASE_REF"

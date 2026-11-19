@@ -1,0 +1,93 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/.env*)",
+      "Read(**/*.snk)",
+      "Read(**/*.pfx)",
+      "Read(**/*.p12)",
+      "Read(~/.nuget/NuGet/NuGet.Config)",
+      "Bash(cat .env*)",
+      "Bash(head .env*)",
+      "Bash(tail .env*)",
+      "Bash(git tag v*)",
+      "Bash(git push --tags*)",
+      "Bash(git push origin v*)",
+      "Bash(git push origin refs/tags/*)",
+      "Bash(dotnet nuget push*)",
+      "Bash(dotnet nuget setapikey*)",
+      "Bash(nuget push*)",
+      "Bash(gh release*)",
+      "Bash(gh workflow run*)"
+    ],
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "TodoWrite",
+      "Agent",
+      "mcp__context7__*",
+      "Bash(git status*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git branch*)",
+      "Bash(git show*)",
+      "Bash(git rev-parse*)",
+      "Bash(git fetch*)",
+      "Bash(git remote -v*)",
+      "Bash(git blame*)",
+      "Bash(ls*)",
+      "Bash(pwd)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(find *)",
+      "Bash(which *)",
+      "Bash(dotnet --info)",
+      "Bash(dotnet --version)",
+      "Bash(dotnet --list-sdks)",
+      "Bash(dotnet --list-runtimes)",
+      "Bash(dotnet workload list*)",
+      "Bash(dotnet restore*)",
+      "Bash(dotnet build*)",
+      "Bash(dotnet test*)",
+      "Bash(dotnet format*)",
+      "Bash(dotnet package list*)",
+      "Bash(dotnet list * package*)",
+      "Bash(dotnet tool restore)",
+      "Bash(dotnet tool run apicompat*)",
+      "Bash(sh scripts/lint-new.sh*)",
+      "Bash(sh scripts/api-new.sh*)",
+      "Bash(sh scripts/coverage.sh*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check-edited-file.sh",
+            "timeout": 120,
+            "statusMessage": "Whitespace and a build of the edited file's project..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check-before-stop.sh",
+            "timeout": 600,
+            "statusMessage": "scripts/lint-new.sh, scripts/api-new.sh and the tests..."
+          }
+        ]
+      }
+    ]
+  }
+}

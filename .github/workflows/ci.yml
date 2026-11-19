@@ -1,33 +1,73 @@
 name: CI
 
+# No path filter: a required check that never reports blocks the PR.
 on:
+  pull_request:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
 
 jobs:
-  core:
-    name: Build & test Gleap.Core
+  # Every shipped project but Gleap.Maui, the WPF sample, and the tests with coverage.
+  build-test:
     runs-on: ubuntu-latest
+    # The default is 360 minutes; a test that never exits must not burn them.
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The .NET 10 SDK in a folder of its own: the runner image also has newer SDKs, and without a global.json pin
+      # `dotnet` would take the newest, whose new analyzer rules then fail an unrelated PR.
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
+      - run: dotnet --list-sdks
+      # The shipped projects are clean, so their warnings stay errors. EnableWindowsTargeting builds the Windows
+      # package on Linux.
+      - name: Build the shipped projects (warnings as errors)
+        run: |
+          dotnet build src/Gleap.Core/Gleap.Core.csproj -c Release -warnaserror
+          dotnet build src/Gleap.Extensions.Logging/Gleap.Extensions.Logging.csproj -c Release -warnaserror
+          dotnet build src/Gleap.WebView2/Gleap.WebView2.csproj -c Release -warnaserror -p:EnableWindowsTargeting=true
+      # Not shipped: built so a change to the packages cannot break the sample unnoticed.
+      - name: Build the WPF sample
+        run: dotnet build examples/Gleap.Sample.Wpf/Gleap.Sample.Wpf.csproj -c Release -p:EnableWindowsTargeting=true
+      # The test project builds without -warnaserror: old tests have xUnit1051 warnings, which stay visible so that
+      # scripts/lint-new.sh keeps them off new tests, instead of a NoWarn that would hide the rule from new tests too.
+      - name: Tests with coverage and its floor
+        run: sh scripts/coverage.sh
+      - name: Coverage summary
+        if: always()
+        run: |
+          f=TestResults/coverage.cobertura.xml
+          [ -f "$f" ] || exit 0
+          rate=$(sed -n 's/.*<coverage [^>]*line-rate="\([0-9.]*\)".*/\1/p' "$f" | head -n 1)
+          awk -v r="$rate" 'BEGIN { printf "Line coverage of Gleap.Core and Gleap.Extensions.Logging: %.1f%%\n", r * 100 }' >>"$GITHUB_STEP_SUMMARY"
 
-      # Only Gleap.sln (Gleap.Core + tests) is cross-platform.
-      # Gleap.Windows.sln and the Unity/MAUI packages require Windows / platform
-      # workloads and are intentionally excluded from Linux CI.
-      - name: Restore
-        run: dotnet restore Gleap.sln
-
-      # -warnaserror + EnforceCodeStyleInBuild (in Directory.Build.props) enforces analyzers
-      # and code style as part of the build, so a separate `dotnet format` step is redundant.
-      - name: Build (warnings + code style as errors)
-        run: dotnet build Gleap.sln -c Release -warnaserror --no-restore
-
-      - name: Test
-        run: dotnet test Gleap.sln -c Release --no-build --verbosity normal
+  # Gleap.Maui's Android, iOS and Mac Catalyst targets, as the release builds them: on macOS with the maui workload.
+  maui:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet workload install maui
+      # MSB3243 (the explicit Mono.Android.Export reference meets the workload's own) stays a warning: fixing it
+      # changes the project file of a shipped package, which is a change of its own.
+      - name: Build Gleap.Maui (warnings as errors)
+        run: dotnet build maui/Gleap.Maui/Gleap.Maui.csproj -c Release -warnaserror -warnNotAsError:MSB3243
